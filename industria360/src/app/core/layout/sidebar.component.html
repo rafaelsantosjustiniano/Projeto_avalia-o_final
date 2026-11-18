@@ -24,10 +24,10 @@
     <div class="unit">
       <app-icon name="fabrica" [size]="16" />
       <div>
-        <strong>{{ config.config().unidade }}</strong>
-        <span>{{ config.config().empresa }}</span>
+        <strong>{{ config.config().unidade || 'Unidade não cadastrada' }}</strong>
+        <span>{{ config.config().empresa || 'Cadastre em Configurações' }}</span>
       </div>
     </div>
-    <div class="ver">INDUSTRIA360 · MVP v1.0 · Demonstração</div>
+    <div class="ver">INDUSTRIA360 · v1.0</div>
   </div>
 </aside>

@@ -1,7 +1,6 @@
 import { computed, Injectable } from '@angular/core';
 import { Equipamento, SituacaoEquipamento } from '../models';
 import { BaseCrudService } from './base-crud.service';
-import { seedEquipamentos } from '../data/seed-data';
 import { proximoSequencial } from '../../shared/utils/codigos';
 import { agoraISO } from '../../shared/utils/datas';
 
@@ -11,7 +10,7 @@ export type EquipamentoDados = Omit<Equipamento, 'id' | 'criadoEm'>;
 @Injectable({ providedIn: 'root' })
 export class EquipamentoService extends BaseCrudService<Equipamento> {
   constructor() {
-    super('equipamentos', 'eq', seedEquipamentos);
+    super('equipamentos', 'eq');
   }
 
   /** Contagem por situação operacional (usada no dashboard). */

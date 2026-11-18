@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Chamado, StatusChamado } from '../models';
 import { BaseCrudService } from './base-crud.service';
-import { seedChamados } from '../data/seed-data';
 import { proximoSequencial } from '../../shared/utils/codigos';
 import { agoraISO, hoje } from '../../shared/utils/datas';
 
@@ -11,7 +10,7 @@ export type ChamadoDados = Omit<Chamado, 'id' | 'protocolo' | 'dataHora' | 'stat
 @Injectable({ providedIn: 'root' })
 export class ChamadoService extends BaseCrudService<Chamado> {
   constructor() {
-    super('chamados', 'ch', seedChamados);
+    super('chamados', 'ch');
   }
 
   /** Protocolo automático no formato CH-AAAAMMDD-0000 (sequencial por dia). */

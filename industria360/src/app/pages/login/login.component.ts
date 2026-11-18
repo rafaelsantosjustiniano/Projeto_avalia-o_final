@@ -21,6 +21,7 @@ export class LoginComponent {
 
   readonly erro = signal('');
   readonly enviado = signal(false);
+  readonly entrando = signal(false);
   readonly mostrarSenha = signal(false);
   readonly ano = new Date().getFullYear();
 
@@ -33,12 +34,7 @@ export class LoginComponent {
     if (this.auth.autenticado()) this.router.navigate(['/dashboard']);
   }
 
-  preencher(login: string, senha: string) {
-    this.form.setValue({ login, senha });
-    this.erro.set('');
-  }
-
-  entrar() {
+  async entrar() {
     this.enviado.set(true);
     this.erro.set('');
     if (this.form.invalid) {
@@ -46,11 +42,18 @@ export class LoginComponent {
       return;
     }
     const { login, senha } = this.form.getRawValue();
-    if (this.auth.entrar(login, senha)) {
-      this.notif.sucesso(`Bem-vindo(a), ${this.auth.usuario()?.nome}.`, 'Acesso autorizado');
-      this.router.navigate(['/dashboard']);
-    } else {
-      this.erro.set('Usuário ou senha inválidos.');
+    this.entrando.set(true);
+    try {
+      if (await this.auth.entrar(login, senha)) {
+        this.notif.sucesso(`Bem-vindo(a), ${this.auth.usuario()?.nome}.`, 'Acesso autorizado');
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.erro.set('Usuário ou senha inválidos.');
+      }
+    } catch (e) {
+      this.erro.set(`Não foi possível entrar: ${e instanceof Error ? e.message : 'erro de conexão.'}`);
+    } finally {
+      this.entrando.set(false);
     }
   }
 }

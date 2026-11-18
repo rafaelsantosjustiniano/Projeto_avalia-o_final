@@ -1,3 +1,4 @@
+export * from './api.service';
 export * from './storage.service';
 export * from './auth.service';
 export * from './notificacao.service';
@@ -11,3 +12,4 @@ export * from './preventiva.service';
 export * from './corretiva.service';
 export * from './estoque.service';
 export * from './dados.service';
+export * from './sugestao.service';

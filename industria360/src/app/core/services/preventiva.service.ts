@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { Preventiva, StatusPreventiva } from '../models';
 import { BaseCrudService } from './base-crud.service';
-import { seedPreventivas } from '../data/seed-data';
 import { diferencaDias, hoje, somarDias } from '../../shared/utils/datas';
 import { FREQUENCIA_DIAS } from '../constants/opcoes';
 import { ConfiguracaoService } from './configuracao.service';
@@ -18,7 +17,7 @@ export class PreventivaService extends BaseCrudService<Preventiva> {
   private readonly auth = inject(AuthService);
 
   constructor() {
-    super('preventivas', 'pv', seedPreventivas);
+    super('preventivas', 'pv');
   }
 
   /** Próxima data: última execução + frequência, ou a data programada inicial. */

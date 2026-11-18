@@ -1,7 +1,6 @@
 import { computed, Injectable } from '@angular/core';
 import { SituacaoTecnico, Tecnico } from '../models';
 import { BaseCrudService } from './base-crud.service';
-import { seedTecnicos } from '../data/seed-data';
 import { proximoSequencial } from '../../shared/utils/codigos';
 
 export type TecnicoDados = Omit<Tecnico, 'id'>;
@@ -10,7 +9,7 @@ export type TecnicoDados = Omit<Tecnico, 'id'>;
 @Injectable({ providedIn: 'root' })
 export class TecnicoService extends BaseCrudService<Tecnico> {
   constructor() {
-    super('tecnicos', 'tec', seedTecnicos);
+    super('tecnicos', 'tec');
   }
 
   readonly ordenados = computed(() => [...this._itens()].sort((a, b) => a.nome.localeCompare(b.nome)));

@@ -1,0 +1,163 @@
+<div class="page">
+  <app-page-header title="Sugestões" icon="mensagem" subtitle="Relate erros do sistema, proponha melhorias ou deixe sua opinião">
+    @if (auth.ehAdmin()) {
+      <button class="btn" (click)="exportar()" [disabled]="!filtradas().length"><app-icon name="download" [size]="16" /> Exportar CSV</button>
+    }
+  </app-page-header>
+
+  <div class="layout">
+    <!-- Formulário de envio -->
+    <section class="card form-card">
+      <div class="card-header"><div><div class="card-title">Enviar mensagem</div><div class="card-subtitle">Toda mensagem é lida pela administração do sistema</div></div></div>
+
+      <form [formGroup]="form" (ngSubmit)="enviar()" novalidate class="stack">
+        <div class="field">
+          <label>Tipo <span class="req">*</span></label>
+          <div class="tipos" role="radiogroup" aria-label="Tipo de mensagem">
+            @for (t of tipos; track t) {
+              <button type="button" class="tipo" role="radio" [attr.aria-checked]="tipoSelecionado() === t"
+                [class.on]="tipoSelecionado() === t" (click)="escolherTipo(t)">
+                <app-icon [name]="infoTipo[t].icone" [size]="16" /> {{ t }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="smod">Página do sistema <span class="req">*</span></label>
+          <select id="smod" class="select" formControlName="modulo" [class.invalid]="inv('modulo')">
+            <option value="" disabled>Selecione…</option>
+            @for (m of modulos; track m) { <option [value]="m">{{ m }}</option> }
+          </select>
+          @if (inv('modulo')) { <span class="error-msg">{{ erro('modulo') }}</span> }
+        </div>
+
+        <div class="field">
+          <label for="stit">Título <span class="req">*</span></label>
+          <input id="stit" class="input" formControlName="titulo" maxlength="150" placeholder="Resumo em uma frase" [class.invalid]="inv('titulo')" />
+          @if (inv('titulo')) { <span class="error-msg">{{ erro('titulo') }}</span> }
+        </div>
+
+        <div class="field">
+          <label for="sdesc">Descrição <span class="req">*</span></label>
+          <textarea id="sdesc" class="textarea" rows="6" formControlName="descricao" maxlength="2000"
+            [placeholder]="infoTipo[tipoSelecionado()].dica" [class.invalid]="inv('descricao')"></textarea>
+          @if (inv('descricao')) { <span class="error-msg">{{ erro('descricao') }}</span> }
+          @else { <span class="hint">{{ infoTipo[tipoSelecionado()].dica }}</span> }
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block"><app-icon name="enviar" [size]="16" /> Enviar</button>
+      </form>
+    </section>
+
+    <!-- Lista -->
+    <section class="lista">
+      <div class="lista-head">
+        <h2>{{ auth.ehAdmin() ? 'Todas as mensagens' : 'Minhas mensagens' }}</h2>
+        @if (!auth.ehAdmin()) { <span class="muted small">Acompanhe aqui o status e a resposta da administração.</span> }
+      </div>
+
+      <div class="chips">
+        <button class="chip" [class.active]="!fStatus()" (click)="fStatus.set('')">Todas <span class="n">{{ base().length }}</span></button>
+        @for (r of resumo(); track r.s) {
+          <button class="chip" [class.active]="fStatus() === r.s" (click)="fStatus.set(fStatus() === r.s ? '' : r.s)"><app-badge [value]="r.s" /> <span class="n">{{ r.n }}</span></button>
+        }
+      </div>
+
+      @if (auth.ehAdmin()) {
+        <div class="toolbar">
+          <div class="search-box">
+            <app-icon name="busca" [size]="16" />
+            <input class="input" placeholder="Pesquisar por título, descrição ou autor…" [ngModel]="busca()" (ngModelChange)="busca.set($event)" />
+          </div>
+          <select class="select" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event)" aria-label="Tipo">
+            <option value="">Todos os tipos</option>
+            @for (t of tipos; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+          <select class="select" [ngModel]="fModulo()" (ngModelChange)="fModulo.set($event)" aria-label="Página">
+            <option value="">Todas as páginas</option>
+            @for (m of modulos; track m) { <option [value]="m">{{ m }}</option> }
+          </select>
+          @if (temFiltro()) {
+            <button class="btn btn-ghost btn-sm" (click)="limparFiltros()"><app-icon name="fechar" [size]="14" /> Limpar</button>
+          }
+        </div>
+      }
+
+      <div class="itens">
+        @for (s of filtradas(); track s.id) {
+          <article class="item" [style.--c]="corDe(s.status)">
+            <div class="i-top">
+              <app-badge [value]="s.tipo" />
+              <span class="tag"><app-icon name="arquivo" [size]="12" /> {{ s.modulo }}</span>
+              <span class="grow"></span>
+              <app-badge [value]="s.status" />
+            </div>
+            <h3>{{ s.titulo }}</h3>
+            <p class="desc">{{ s.descricao }}</p>
+            <div class="meta">
+              <app-icon name="usuario" [size]="13" /> {{ s.autorNome }}
+              <span class="dot">·</span>
+              <app-icon name="relogio" [size]="13" /> {{ s.dataEnvio | date: 'dd/MM/yyyy HH:mm' }}
+            </div>
+
+            @if (s.resposta) {
+              <div class="resposta">
+                <div class="r-head"><app-icon name="mensagem" [size]="14" /> Resposta de {{ s.respondidoPor }}
+                  @if (s.dataResposta) { <span class="muted">· {{ s.dataResposta | date: 'dd/MM/yyyy HH:mm' }}</span> }
+                </div>
+                <p>{{ s.resposta }}</p>
+              </div>
+            }
+
+            @if (auth.ehAdmin()) {
+              <div class="i-acoes">
+                <select class="select sm" [ngModel]="s.status" (ngModelChange)="alterarStatus(s, $event)" aria-label="Alterar status">
+                  @for (st of statusLista; track st) { <option [value]="st">{{ st }}</option> }
+                </select>
+                <button class="btn btn-sm" (click)="abrirResposta(s)"><app-icon name="mensagem" [size]="14" /> {{ s.resposta ? 'Editar resposta' : 'Responder' }}</button>
+                <button class="icon-btn danger" title="Excluir" (click)="excluir(s)"><app-icon name="excluir" [size]="16" /></button>
+              </div>
+            }
+          </article>
+        } @empty {
+          <div class="card">
+            @if (temFiltro()) {
+              <app-empty-state icon="busca"><button class="btn btn-sm" (click)="limparFiltros()">Limpar filtros</button></app-empty-state>
+            } @else {
+              <app-empty-state icon="mensagem" title="Nenhuma mensagem ainda"
+                [message]="auth.ehAdmin() ? 'As sugestões e relatos de erro enviados pelos usuários aparecerão aqui.' : 'Use o formulário para enviar sua primeira sugestão ou relatar um erro.'" />
+            }
+          </div>
+        }
+      </div>
+    </section>
+  </div>
+</div>
+
+@if (respondendo(); as s) {
+  <app-modal title="Responder mensagem" icon="mensagem" size="md" [subtitle]="s.titulo" (close)="respondendo.set(null)">
+    <div class="stack">
+      <div class="original">
+        <div class="muted small">{{ s.autorNome }} · {{ s.tipo }} · {{ s.modulo }}</div>
+        <p>{{ s.descricao }}</p>
+      </div>
+      <div class="field">
+        <label for="rstatus">Status</label>
+        <select id="rstatus" class="select" [ngModel]="statusResposta()" (ngModelChange)="statusResposta.set($event)">
+          @for (st of statusLista; track st) { <option [value]="st">{{ st }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="rtexto">Resposta para o autor</label>
+        <textarea id="rtexto" class="textarea" rows="5" maxlength="2000" placeholder="Ex.: Corrigido na versão de hoje. Obrigado pelo aviso!"
+          [ngModel]="resposta()" (ngModelChange)="resposta.set($event)"></textarea>
+        <span class="hint">O autor verá esta resposta na página Sugestões.</span>
+      </div>
+    </div>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="respondendo.set(null)">Cancelar</button>
+      <button type="button" class="btn btn-primary" (click)="salvarResposta()"><app-icon name="check" [size]="16" /> Salvar</button>
+    </div>
+  </app-modal>
+}
