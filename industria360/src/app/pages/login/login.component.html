@@ -1,0 +1,67 @@
+<div class="login">
+  <section class="hero">
+    <div class="grid-bg"></div>
+    <div class="hero-content">
+      <app-logo [size]="64" />
+      <h1>Gestão de manutenção industrial<br /><span>com visão 360° dos seus ativos.</span></h1>
+      <p>Plataforma EAM para fábricas, refinarias e plataformas de óleo e gás: equipamentos, ordens de serviço,
+        chamados, preventivas, corretivas, estoque e equipe em um único lugar.</p>
+      <ul class="features">
+        <li><app-icon name="equipamento" [size]="18" /> Cadastro completo de ativos industriais</li>
+        <li><app-icon name="os" [size]="18" /> Ordens de serviço com histórico auditável</li>
+        <li><app-icon name="calendario" [size]="18" /> Planos preventivos com alertas de vencimento</li>
+        <li><app-icon name="relatorio" [size]="18" /> Indicadores de disponibilidade e desempenho</li>
+      </ul>
+    </div>
+    <div class="hero-foot">MVP · Projeto de inovação tecnológica · Ambiente de demonstração com dados fictícios</div>
+  </section>
+
+  <section class="panel">
+    <form class="card-login" [formGroup]="form" (ngSubmit)="entrar()" novalidate>
+      <div class="mobile-logo"><app-logo [size]="44" /></div>
+      <h2>Acessar o sistema</h2>
+      <p class="sub">{{ config.config().unidade }}</p>
+
+      <div class="field">
+        <label for="login">Usuário <span class="req">*</span></label>
+        <div class="input-ic">
+          <app-icon name="usuario" [size]="16" />
+          <input id="login" class="input" formControlName="login" autocomplete="username" placeholder="Seu usuário"
+            [class.invalid]="enviado() && form.controls.login.invalid" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="senha">Senha <span class="req">*</span></label>
+        <div class="input-ic">
+          <app-icon name="cadeado" [size]="16" />
+          <input id="senha" class="input" [type]="mostrarSenha() ? 'text' : 'password'" formControlName="senha"
+            autocomplete="current-password" placeholder="Sua senha" [class.invalid]="enviado() && form.controls.senha.invalid" />
+          <button type="button" class="toggle" (click)="mostrarSenha.set(!mostrarSenha())" [attr.aria-label]="'Mostrar senha'">
+            <app-icon name="ver" [size]="16" />
+          </button>
+        </div>
+      </div>
+
+      @if (erro()) {
+        <div class="alert alert-danger"><app-icon name="alerta" [size]="16" /> {{ erro() }}</div>
+      }
+
+      <button type="submit" class="btn btn-primary btn-block lg">
+        Entrar <app-icon name="seta-direita" [size]="16" />
+      </button>
+
+      <div class="demo">
+        <div class="demo-title"><app-icon name="info" [size]="14" /> Credenciais de demonstração</div>
+        @for (c of auth.credenciaisDemo; track c.login) {
+          <button type="button" class="cred" (click)="preencher(c.login, c.senha)">
+            <span><b>{{ c.login }}</b> / {{ c.senha }}</span>
+            <small>{{ c.perfil }}</small>
+          </button>
+        }
+      </div>
+
+      <p class="copy">© {{ ano }} INDUSTRIA360 – Gestão Industrial Inteligente</p>
+    </form>
+  </section>
+</div>

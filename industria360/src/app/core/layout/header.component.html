@@ -1,0 +1,65 @@
+<header class="header">
+  <button class="icon-btn menu-btn" (click)="menu.emit()" aria-label="Abrir menu"><app-icon name="menu" [size]="20" /></button>
+
+  <div class="title">
+    <span class="sys">INDUSTRIA<b>360</b></span>
+    <span class="sep"></span>
+    <span class="unit">{{ config.config().unidade }}</span>
+  </div>
+
+  @if (config.config().exibirAvisoDemo) {
+    <span class="demo" title="Todos os dados são fictícios e armazenados apenas neste navegador.">
+      <app-icon name="info" [size]="14" /> Ambiente de demonstração · dados fictícios
+    </span>
+  }
+
+  <div class="right">
+    <span class="clock">
+      <app-icon name="relogio" [size]="15" />
+      {{ agora() | date: "EEE, dd 'de' MMM · HH:mm" }}
+    </span>
+
+    <button class="icon-btn" (click)="config.alternarTema()" [attr.aria-label]="'Alternar tema'" title="Alternar tema claro/escuro">
+      <app-icon [name]="config.config().tema === 'dark' ? 'sol' : 'lua'" />
+    </button>
+
+    <div class="pop-wrap">
+      <button class="icon-btn bell" (click)="alternar('alertas', $event)" aria-label="Alertas" title="Alertas operacionais">
+        <app-icon name="chamado" />
+        @if (alertas().length) { <span class="dot-count">{{ alertas().length }}</span> }
+      </button>
+      @if (painel() === 'alertas') {
+        <div class="pop" (click)="$event.stopPropagation()">
+          <div class="pop-head">Alertas operacionais <span>{{ alertas().length }}</span></div>
+          <div class="pop-list">
+            @for (a of alertas(); track $index) {
+              <button class="alert-item" (click)="abrir(a.rota)">
+                <span class="mark" [class]="'mark m-' + a.tom"></span>
+                <div><strong>{{ a.titulo }}</strong><small>{{ a.detalhe }}</small></div>
+                <app-icon name="chevron-dir" [size]="16" />
+              </button>
+            } @empty {
+              <div class="pop-empty"><app-icon name="check-circulo" /> Nenhum alerta no momento.</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="pop-wrap">
+      <button class="user" (click)="alternar('usuario', $event)">
+        <span class="avatar">{{ iniciais() }}</span>
+        <span class="u-info">
+          <strong>{{ auth.usuario()?.nome }}</strong>
+          <small>{{ auth.usuario()?.perfil }}</small>
+        </span>
+      </button>
+      @if (painel() === 'usuario') {
+        <div class="pop pop-user" (click)="$event.stopPropagation()">
+          <a class="menu-item" routerLink="/configuracoes" (click)="painel.set(null)"><app-icon name="config" [size]="16" /> Configurações</a>
+          <button class="menu-item danger" (click)="auth.sair()"><app-icon name="sair" [size]="16" /> Sair do sistema</button>
+        </div>
+      }
+    </div>
+  </div>
+</header>

@@ -1,0 +1,146 @@
+<div class="page">
+  <app-page-header title="Relatórios" icon="relatorio" subtitle="Indicadores gerenciais de manutenção, falhas e disponibilidade">
+    <button class="btn" (click)="exportarJSON()"><app-icon name="arquivo" [size]="16" /> JSON</button>
+    <button class="btn" (click)="exportarCSV()"><app-icon name="download" [size]="16" /> Exportar CSV</button>
+    <button class="btn btn-primary" (click)="imprimir()"><app-icon name="imprimir" [size]="16" /> Imprimir / PDF</button>
+  </app-page-header>
+
+  <!-- Cabeçalho exclusivo da impressão -->
+  <div class="print-only print-head">
+    <div class="ph-brand">INDUSTRIA<b>360</b> <span>– Gestão Industrial Inteligente</span></div>
+    <h2>Relatório gerencial de manutenção</h2>
+    <p>{{ config.config().empresa }} · {{ config.config().unidade }}</p>
+    <p>Filtros: {{ descricaoFiltros() }}</p>
+    <p>Emitido em {{ geradoEm | date: 'dd/MM/yyyy HH:mm' }} por {{ auth.usuario()?.nome }} · Dados de demonstração</p>
+  </div>
+
+  <div class="filters no-print">
+    <div class="field">
+      <label for="ri">Data inicial</label>
+      <input id="ri" type="date" class="input" [ngModel]="inicio()" (ngModelChange)="inicio.set($event)" [max]="fim()" />
+    </div>
+    <div class="field">
+      <label for="rf">Data final</label>
+      <input id="rf" type="date" class="input" [ngModel]="fim()" (ngModelChange)="fim.set($event)" [min]="inicio()" />
+    </div>
+    <div class="field">
+      <label for="rs">Setor</label>
+      <select id="rs" class="select" [ngModel]="setor()" (ngModelChange)="alterarSetor($event)">
+        <option value="">Todos os setores</option>
+        @for (s of config.config().setores; track s) { <option [value]="s">{{ s }}</option> }
+      </select>
+    </div>
+    <div class="field">
+      <label for="re">Equipamento</label>
+      <select id="re" class="select" [ngModel]="equipamento()" (ngModelChange)="equipamento.set($event)">
+        <option value="">Todos os equipamentos</option>
+        @for (e of equipamentosDoSetor(); track e.id) { <option [value]="e.id">{{ e.codigo }} · {{ e.nome }}</option> }
+      </select>
+    </div>
+    <div class="quick">
+      <span class="label">Período rápido</span>
+      <div class="row wrap">
+        <button class="chip" (click)="aplicarPeriodo(30)">30 dias</button>
+        <button class="chip" (click)="aplicarPeriodo(90)">90 dias</button>
+        <button class="chip" (click)="aplicarPeriodo(180)">6 meses</button>
+        <button class="chip" (click)="aplicarPeriodo(365)">12 meses</button>
+        <button class="btn btn-ghost btn-sm" (click)="limpar()"><app-icon name="recarregar" [size]="14" /> Redefinir</button>
+      </div>
+    </div>
+  </div>
+
+  @if (!periodoValido()) {
+    <div class="alert alert-danger mb-16"><app-icon name="alerta" [size]="16" /> A data inicial deve ser anterior ou igual à data final.</div>
+  }
+
+  <div class="kpi-grid">
+    <app-kpi-card label="Total de manutenções" [value]="indicadores().totalManutencoes" icon="ferramenta" tone="info"
+      [hint]="indicadores().totalOS + ' OS + ' + (indicadores().totalManutencoes - indicadores().totalOS) + ' execuções preventivas'" />
+    <app-kpi-card label="Quantidade de falhas" [value]="indicadores().falhas" icon="alerta" tone="danger" [hint]="indicadores().chamados + ' chamados no período'" />
+    <app-kpi-card label="Tempo médio de OS" [value]="(indicadores().tempoMedioOS | number: '1.0-1') ?? '0'" unit="h" icon="relogio" tone="orange"
+      [hint]="'Abertura → conclusão · ' + indicadores().osConcluidas + ' OS concluídas'" />
+    <app-kpi-card label="MTTR" [value]="(indicadores().mttr | number: '1.0-1') ?? '0'" unit="h" icon="medidor" tone="warning" hint="Tempo médio de reparo (corretivas)" />
+    <app-kpi-card label="MTBF" [value]="(indicadores().mtbf | number: '1.0-0') ?? '0'" unit="h" icon="tendencia" tone="purple" hint="Tempo médio entre falhas" />
+    <app-kpi-card label="Disponibilidade" [value]="(indicadores().disponibilidade | number: '1.1-2') ?? '0'" unit="%" icon="atividade"
+      [tone]="indicadores().disponibilidade >= 98 ? 'success' : indicadores().disponibilidade >= 95 ? 'warning' : 'danger'"
+      [hint]="(indicadores().parada | number: '1.0-1') + ' h de parada no período'" />
+    <app-kpi-card label="Cumprimento de prazo" [value]="(indicadores().conformidadePrazo | number: '1.0-0') ?? '0'" unit="%" icon="check-circulo" tone="success" hint="OS concluídas dentro do prazo" />
+    <app-kpi-card label="Equipamentos analisados" [value]="equipamentosBase().length" icon="equipamento" tone="neutral" [hint]="setor() || 'Todos os setores'" />
+  </div>
+
+  <div class="grid-2 mb-16">
+    <div class="card span-2">
+      <div class="card-header"><div><div class="card-title">Ordens de serviço por período</div><div class="card-subtitle">Abertas, concluídas e falhas registradas por mês</div></div></div>
+      <app-chart type="line" [data]="chartPeriodo()" [height]="290" />
+    </div>
+    <div class="card">
+      <div class="card-header"><div><div class="card-title">Manutenções por setor</div><div class="card-subtitle">OS no período por tipo</div></div></div>
+      <app-chart type="bar" [data]="chartSetor()" [options]="optEmpilhado" [height]="300" />
+    </div>
+    <div class="card">
+      <div class="card-header"><div><div class="card-title">OS por status</div><div class="card-subtitle">Situação das ordens abertas no período</div></div></div>
+      @if (os().length) {
+        <app-chart type="doughnut" [data]="chartStatus()" [options]="optRosca" [height]="300" />
+      } @else {
+        <app-empty-state icon="os" title="Sem OS no período" message="Altere os filtros para visualizar dados." />
+      }
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="table-card">
+      <div class="card-header pad"><div><div class="card-title">Equipamentos com mais ocorrências</div><div class="card-subtitle">OS + chamados + corretivas no período</div></div></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>#</th><th>Equipamento</th><th class="text-center">OS</th><th class="text-center">Cham.</th><th class="text-center">Corr.</th><th>Total</th></tr></thead>
+          <tbody>
+            @for (r of ranking(); track r.id; let i = $index) {
+              <tr>
+                <td class="mono muted">{{ i + 1 }}</td>
+                <td><div class="cell-main">{{ r.rotulo }}</div><div class="cell-sub">{{ r.setor }} · {{ r.parada | number: '1.0-1' }} h de parada</div></td>
+                <td class="text-center mono">{{ r.os }}</td>
+                <td class="text-center mono">{{ r.chamados }}</td>
+                <td class="text-center mono">{{ r.corretivas }}</td>
+                <td class="rank"><strong>{{ r.total }}</strong><div class="progress danger"><span [style.width.%]="r.pct"></span></div></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6"><app-empty-state title="Sem ocorrências" message="Nenhuma ocorrência no período selecionado." /></td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="card-header pad"><div><div class="card-title">Indicadores de disponibilidade</div>
+        <div class="card-subtitle">Base: {{ horasPeriodo() | number: '1.0-0' }} h/equipamento ({{ config.config().horasOperacaoDia }} h/dia) − horas de parada corretiva</div></div></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Equipamento</th><th>Situação</th><th class="text-center">Falhas</th><th class="text-right">Parada</th><th>Disponibilidade</th></tr></thead>
+          <tbody>
+            @for (d of disponibilidadeEquip(); track d.id) {
+              <tr>
+                <td><div class="cell-main">{{ d.nome }}</div><div class="cell-sub mono">{{ d.codigo }}</div></td>
+                <td><app-badge [value]="d.situacao" /></td>
+                <td class="text-center mono">{{ d.falhas }}</td>
+                <td class="text-right mono nowrap">{{ d.parada | number: '1.0-1' }} h</td>
+                <td class="disp">
+                  <strong [class.text-danger]="tomDisp(d.disp) === 'danger'" [class.text-warning]="tomDisp(d.disp) === 'warning'">{{ d.disp | number: '1.1-2' }}%</strong>
+                  <div class="progress" [class]="'progress ' + tomDisp(d.disp)"><span [style.width.%]="d.disp"></span></div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5"><app-empty-state icon="equipamento" /></td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">
+    <app-icon name="info" [size]="14" />
+    Indicadores calculados a partir dos dados cadastrados neste navegador (demonstração). Disponibilidade = (horas do período − horas de parada) ÷ horas do período.
+    MTTR = média do tempo entre ocorrência e conclusão das corretivas. MTBF = horas operadas ÷ número de falhas.
+  </p>
+</div>

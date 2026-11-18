@@ -1,0 +1,153 @@
+<div class="page">
+  <app-page-header title="Técnicos e Equipe" icon="equipe" subtitle="Profissionais de manutenção, especialidades e disponibilidade">
+    <button class="btn" (click)="exportar()"><app-icon name="download" [size]="16" /> Exportar CSV</button>
+    <button class="btn btn-primary" (click)="novo()"><app-icon name="mais" [size]="16" /> Novo técnico</button>
+  </app-page-header>
+
+  <div class="chips">
+    <button class="chip" [class.active]="!fSituacao()" (click)="fSituacao.set('')">Todos <span class="n">{{ svc.itens().length }}</span></button>
+    @for (r of resumo(); track r.s) {
+      <button class="chip" [class.active]="fSituacao() === r.s" (click)="fSituacao.set(fSituacao() === r.s ? '' : r.s)"><app-badge [value]="r.s" /> <span class="n">{{ r.n }}</span></button>
+    }
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <app-icon name="busca" [size]="16" />
+      <input class="input" placeholder="Pesquisar por nome, matrícula, e-mail ou especialidade…" [ngModel]="busca()" (ngModelChange)="busca.set($event)" />
+    </div>
+    <select class="select" [ngModel]="fEspecialidade()" (ngModelChange)="fEspecialidade.set($event)" aria-label="Especialidade">
+      <option value="">Todas as especialidades</option>
+      @for (e of config.config().especialidades; track e) { <option [value]="e">{{ e }}</option> }
+    </select>
+    <select class="select" [ngModel]="fSetor()" (ngModelChange)="fSetor.set($event)" aria-label="Setor">
+      <option value="">Todos os setores</option>
+      @for (s of config.config().setores; track s) { <option [value]="s">{{ s }}</option> }
+    </select>
+    @if (busca() || fEspecialidade() || fSetor() || fSituacao()) {
+      <button class="btn btn-ghost btn-sm" (click)="limparFiltros()"><app-icon name="fechar" [size]="14" /> Limpar</button>
+    }
+    <div class="view-toggle">
+      <button class="icon-btn" [class.on]="visao() === 'cards'" (click)="visao.set('cards')" title="Cartões"><app-icon name="dashboard" [size]="16" /></button>
+      <button class="icon-btn" [class.on]="visao() === 'tabela'" (click)="visao.set('tabela')" title="Tabela"><app-icon name="menu" [size]="16" /></button>
+    </div>
+    <span class="count">{{ filtrados().length }} de {{ svc.itens().length }} técnicos</span>
+  </div>
+
+  @if (visao() === 'cards') {
+    <div class="cards">
+      @for (t of filtrados(); track t.id) {
+        <div class="tcard" [class]="'tcard st-' + (t.situacao === 'Disponível' ? 'ok' : t.situacao === 'Em atendimento' ? 'busy' : 'off')">
+          <div class="t-head">
+            <span class="avatar lg">{{ iniciais(t.nome) }}</span>
+            <div class="t-id">
+              <strong>{{ t.nome }}</strong>
+              <span class="mono">{{ t.matricula }}</span>
+            </div>
+            <app-badge [value]="t.situacao" />
+          </div>
+          <div class="t-tags"><span class="tag"><app-icon name="ferramenta" [size]="12" /> {{ t.especialidade }}</span><span class="tag"><app-icon name="fabrica" [size]="12" /> {{ t.setor }}</span></div>
+          <div class="t-contact">
+            <a [href]="'tel:' + t.telefone"><app-icon name="telefone" [size]="14" /> {{ t.telefone }}</a>
+            <a [href]="'mailto:' + t.email"><app-icon name="email" [size]="14" /> {{ t.email }}</a>
+          </div>
+          <div class="t-stats">
+            <div><strong>{{ t.osAtivas }}</strong><span>OS em aberto</span></div>
+            <div><strong>{{ t.osConcluidas }}</strong><span>OS concluídas</span></div>
+            <div><strong>{{ t.preventivas }}</strong><span>Planos prev.</span></div>
+          </div>
+          <div class="t-foot">
+            <select class="select sm" [ngModel]="t.situacao" (ngModelChange)="alterarSituacao(t, $event)" aria-label="Alterar situação">
+              @for (s of situacoes; track s) { <option [value]="s">{{ s }}</option> }
+            </select>
+            <button class="icon-btn" title="Editar" (click)="editar(t)"><app-icon name="editar" [size]="16" /></button>
+            <button class="icon-btn danger" title="Excluir" (click)="excluir(t)"><app-icon name="excluir" [size]="16" /></button>
+          </div>
+        </div>
+      } @empty {
+        <div class="card span-all"><app-empty-state icon="equipe"><button class="btn btn-sm" (click)="limparFiltros()">Limpar filtros</button></app-empty-state></div>
+      }
+    </div>
+  } @else {
+    <div class="table-card">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Nome</th><th>Matrícula</th><th>Especialidade</th><th>Setor</th><th>Telefone</th><th>E-mail</th><th>OS abertas</th><th>Situação</th><th class="text-right">Ações</th></tr></thead>
+          <tbody>
+            @for (t of filtrados(); track t.id) {
+              <tr>
+                <td><div class="row"><span class="avatar">{{ iniciais(t.nome) }}</span><span class="cell-main">{{ t.nome }}</span></div></td>
+                <td class="mono">{{ t.matricula }}</td>
+                <td>{{ t.especialidade }}</td>
+                <td>{{ t.setor }}</td>
+                <td class="nowrap">{{ t.telefone }}</td>
+                <td>{{ t.email }}</td>
+                <td class="mono text-center">{{ t.osAtivas }}</td>
+                <td><app-badge [value]="t.situacao" /></td>
+                <td class="text-right"><div class="actions">
+                  <button class="icon-btn" title="Editar" (click)="editar(t)"><app-icon name="editar" [size]="16" /></button>
+                  <button class="icon-btn danger" title="Excluir" (click)="excluir(t)"><app-icon name="excluir" [size]="16" /></button>
+                </div></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="9"><app-empty-state icon="equipe" /></td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+@if (formAberto()) {
+  <app-modal [title]="editandoId() ? 'Editar técnico' : 'Cadastrar técnico'" icon="usuario" size="md" (close)="formAberto.set(false)" subtitle="Campos marcados com * são obrigatórios">
+    <form id="formTec" [formGroup]="form" (ngSubmit)="salvar()" novalidate class="form-grid">
+      <div class="field full">
+        <label for="tnome">Nome completo <span class="req">*</span></label>
+        <input id="tnome" class="input" formControlName="nome" [class.invalid]="inv('nome')" />
+        @if (inv('nome')) { <span class="error-msg">{{ erro('nome') }}</span> }
+      </div>
+      <div class="field">
+        <label for="tmat">Matrícula <span class="req">*</span></label>
+        <input id="tmat" class="input mono" formControlName="matricula" [class.invalid]="inv('matricula')" />
+        @if (inv('matricula')) { <span class="error-msg">{{ erro('matricula') }}</span> }
+      </div>
+      <div class="field">
+        <label for="tsit">Situação <span class="req">*</span></label>
+        <select id="tsit" class="select" formControlName="situacao">
+          @for (s of situacoes; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="tesp">Especialidade <span class="req">*</span></label>
+        <select id="tesp" class="select" formControlName="especialidade" [class.invalid]="inv('especialidade')">
+          <option value="" disabled>Selecione…</option>
+          @for (e of config.config().especialidades; track e) { <option [value]="e">{{ e }}</option> }
+        </select>
+        @if (inv('especialidade')) { <span class="error-msg">{{ erro('especialidade') }}</span> }
+      </div>
+      <div class="field">
+        <label for="tset">Setor <span class="req">*</span></label>
+        <select id="tset" class="select" formControlName="setor" [class.invalid]="inv('setor')">
+          <option value="" disabled>Selecione…</option>
+          @for (s of config.config().setores; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+        @if (inv('setor')) { <span class="error-msg">{{ erro('setor') }}</span> }
+      </div>
+      <div class="field">
+        <label for="ttel">Telefone <span class="req">*</span></label>
+        <input id="ttel" class="input" formControlName="telefone" placeholder="(21) 99999-9999" (input)="formatarTelefone()" [class.invalid]="inv('telefone')" />
+        @if (inv('telefone')) { <span class="error-msg">{{ erro('telefone') }}</span> }
+      </div>
+      <div class="field">
+        <label for="tmail">E-mail <span class="req">*</span></label>
+        <input id="tmail" type="email" class="input" formControlName="email" placeholder="nome@empresa.com" [class.invalid]="inv('email')" />
+        @if (inv('email')) { <span class="error-msg">{{ erro('email') }}</span> }
+      </div>
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="formAberto.set(false)">Cancelar</button>
+      <button type="submit" form="formTec" class="btn btn-primary"><app-icon name="check" [size]="16" /> {{ editandoId() ? 'Salvar alterações' : 'Cadastrar' }}</button>
+    </div>
+  </app-modal>
+}

@@ -1,0 +1,54 @@
+.header {
+  height: var(--header-h);
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 24px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50;
+}
+.menu-btn { display: none; }
+.title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sys { font-weight: 800; letter-spacing: .05em; font-size: 15px; white-space: nowrap; }
+.sys b { color: var(--orange); }
+.sep { width: 1px; height: 20px; background: var(--border-strong); }
+.unit { color: var(--text-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.demo { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--orange);
+  padding: 4px 10px; border-radius: 999px; border: 1px dashed rgba(245,158,11,.5); background: rgba(245,158,11,.08); white-space: nowrap; }
+.right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.clock { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 12.5px; margin-right: 8px; white-space: nowrap; text-transform: capitalize; }
+.pop-wrap { position: relative; }
+.bell { position: relative; }
+.dot-count { position: absolute; top: -2px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px;
+  background: var(--red); color: #fff; font-size: 10.5px; font-weight: 700; display: grid; place-items: center; border: 2px solid var(--surface); }
+.user { display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px 4px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); cursor: pointer; margin-left: 6px; }
+.user:hover { border-color: var(--border-strong); }
+.u-info { display: flex; flex-direction: column; text-align: left; line-height: 1.2; }
+.u-info strong { font-size: 12.5px; white-space: nowrap; }
+.u-info small { font-size: 11px; color: var(--text-muted); }
+.pop { position: absolute; right: 0; top: calc(100% + 10px); width: 340px; background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); z-index: 100; animation: scaleIn .18s ease; overflow: hidden; }
+.pop-user { width: 220px; padding: 6px; }
+.pop-head { display: flex; justify-content: space-between; padding: 12px 14px; font-weight: 700; border-bottom: 1px solid var(--border); font-size: 13px; }
+.pop-head span { font-family: var(--mono); color: var(--text-muted); }
+.pop-list { max-height: 360px; overflow-y: auto; padding: 6px; }
+.alert-item { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px; border-radius: 8px; border: 0;
+  background: transparent; color: var(--text); cursor: pointer; }
+.alert-item:hover { background: var(--surface-hover); }
+.alert-item div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.alert-item strong { font-size: 13px; }
+.alert-item small { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mark { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.m-danger { background: var(--red); box-shadow: 0 0 0 4px rgba(220,38,38,.18); }
+.m-warning { background: var(--yellow); box-shadow: 0 0 0 4px rgba(234,179,8,.18); }
+.pop-empty { display: flex; gap: 8px; align-items: center; padding: 18px; color: var(--text-muted); font-size: 13px; }
+.menu-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; border: 0; background: transparent;
+  color: var(--text); font-size: 13px; cursor: pointer; font-weight: 500; }
+.menu-item:hover { background: var(--surface-hover); }
+.menu-item.danger { color: #F87171; }
+
+@media (max-width: 1280px) { .clock { display: none; } }
+@media (max-width: 1100px) { .demo { display: none; } }
+@media (max-width: 1024px) { .menu-btn { display: inline-grid; } .header { padding: 0 16px; gap: 10px; } }
+@media (max-width: 720px) { .unit, .sep, .u-info { display: none; } .pop { position: fixed; left: 12px; right: 12px; top: 70px; width: auto; } }

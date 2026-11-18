@@ -1,0 +1,214 @@
+<div class="page">
+  <app-page-header title="Estoque e Peças" icon="estoque" subtitle="Controle de sobressalentes, materiais e movimentações do almoxarifado">
+    <button class="btn" (click)="exportar()"><app-icon name="download" [size]="16" /> Exportar CSV</button>
+    <button class="btn btn-primary" (click)="novo()"><app-icon name="mais" [size]="16" /> Nova peça</button>
+  </app-page-header>
+
+  <div class="summary">
+    <button class="sum s-all" [class.active]="!fNivel()" (click)="fNivel.set('')">
+      <span class="v">{{ svc.itens().length }}</span><span class="l">Itens cadastrados</span>
+    </button>
+    @for (r of resumo(); track r.n) {
+      <button class="sum" [class]="'sum s-' + r.n.toLowerCase()" [class.active]="fNivel() === r.n" (click)="fNivel.set(fNivel() === r.n ? '' : r.n)">
+        <span class="v">{{ r.qtd }}</span><span class="l"><app-badge [value]="r.n" /></span>
+      </button>
+    }
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <app-icon name="busca" [size]="16" />
+      <input class="input" placeholder="Pesquisar por código, nome, fornecedor ou localização…" [ngModel]="busca()" (ngModelChange)="busca.set($event)" />
+    </div>
+    <select class="select" [ngModel]="fCategoria()" (ngModelChange)="fCategoria.set($event)" aria-label="Categoria">
+      <option value="">Todas as categorias</option>
+      @for (c of config.config().categoriasPeca; track c) { <option [value]="c">{{ c }}</option> }
+    </select>
+    <select class="select" [ngModel]="fNivel()" (ngModelChange)="fNivel.set($event)" aria-label="Nível">
+      <option value="">Todos os níveis</option>
+      @for (n of niveis; track n) { <option [value]="n">{{ n }}</option> }
+    </select>
+    <select class="select" [ngModel]="fFornecedor()" (ngModelChange)="fFornecedor.set($event)" aria-label="Fornecedor">
+      <option value="">Todos os fornecedores</option>
+      @for (f of fornecedores(); track f) { <option [value]="f">{{ f }}</option> }
+    </select>
+    @if (busca() || fCategoria() || fNivel() || fFornecedor()) {
+      <button class="btn btn-ghost btn-sm" (click)="limparFiltros()"><app-icon name="fechar" [size]="14" /> Limpar</button>
+    }
+    <span class="count">{{ filtradas().length }} de {{ svc.itens().length }} peças</span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Código</th><th>Peça</th><th>Categoria</th><th>Saldo / Mínimo</th><th>Localização</th><th>Fornecedor</th><th>Nível</th><th class="text-right">Ações</th></tr>
+        </thead>
+        <tbody>
+          @for (p of filtradas(); track p.id) {
+            <tr [class.row-danger]="nivel(p) === 'Zerado'" [class.row-warning]="nivel(p) === 'Baixo'">
+              <td class="mono strong">{{ p.codigo }}</td>
+              <td><button class="link-btn cell-main" (click)="histId.set(p.id)">{{ p.nome }}</button></td>
+              <td class="nowrap">{{ p.categoria }}</td>
+              <td class="qty">
+                <div class="qty-top"><strong>{{ p.quantidade | number: '1.0-2' }}</strong> <span class="muted">{{ p.unidade }}</span></div>
+                <div class="progress" [class]="'progress ' + tomBarra(p)"><span [style.width.%]="percentual(p)"></span></div>
+                <div class="cell-sub">mínimo: {{ p.estoqueMinimo }} {{ p.unidade }}</div>
+              </td>
+              <td>{{ p.localizacao }}</td>
+              <td class="nowrap">{{ p.fornecedor }}</td>
+              <td><app-badge [value]="nivel(p)" /></td>
+              <td class="text-right">
+                <div class="actions">
+                  <button class="icon-btn success" title="Entrada" (click)="abrirMov(p, 'Entrada')"><app-icon name="seta-baixo" [size]="16" /></button>
+                  <button class="icon-btn accent" title="Saída" (click)="abrirMov(p, 'Saída')" [disabled]="p.quantidade <= 0"><app-icon name="seta-cima" [size]="16" /></button>
+                  <button class="icon-btn" title="Histórico de movimentações" (click)="histId.set(p.id)"><app-icon name="historico" [size]="16" /></button>
+                  <button class="icon-btn" title="Editar" (click)="editar(p)"><app-icon name="editar" [size]="16" /></button>
+                  <button class="icon-btn danger" title="Excluir" (click)="excluir(p)"><app-icon name="excluir" [size]="16" /></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8"><app-empty-state icon="estoque"><button class="btn btn-sm" (click)="limparFiltros()">Limpar filtros</button></app-empty-state></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: cadastro / edição -->
+@if (formAberto()) {
+  <app-modal [title]="editandoId() ? 'Editar peça' : 'Cadastrar peça'" icon="estoque" size="lg" (close)="formAberto.set(false)"
+    [subtitle]="editandoId() ? 'Alterações de quantidade geram um ajuste de inventário no histórico' : 'Código gerado automaticamente'">
+    <form id="formPeca" [formGroup]="form" (ngSubmit)="salvar()" novalidate class="form-grid cols-3">
+      <div class="field">
+        <label for="pcod">Código <span class="req">*</span></label>
+        <input id="pcod" class="input mono" formControlName="codigo" [class.invalid]="inv('codigo')" />
+        @if (inv('codigo')) { <span class="error-msg">{{ erro('codigo') }}</span> }
+      </div>
+      <div class="field span-2">
+        <label for="pnome">Nome da peça <span class="req">*</span></label>
+        <input id="pnome" class="input" formControlName="nome" [class.invalid]="inv('nome')" />
+        @if (inv('nome')) { <span class="error-msg">{{ erro('nome') }}</span> }
+      </div>
+      <div class="field">
+        <label for="pcat">Categoria <span class="req">*</span></label>
+        <select id="pcat" class="select" formControlName="categoria" [class.invalid]="inv('categoria')">
+          <option value="" disabled>Selecione…</option>
+          @for (c of config.config().categoriasPeca; track c) { <option [value]="c">{{ c }}</option> }
+        </select>
+        @if (inv('categoria')) { <span class="error-msg">{{ erro('categoria') }}</span> }
+      </div>
+      <div class="field">
+        <label for="pqtd">Quantidade disponível <span class="req">*</span></label>
+        <input id="pqtd" type="number" min="0" class="input" formControlName="quantidade" [class.invalid]="inv('quantidade')" />
+        @if (inv('quantidade')) { <span class="error-msg">{{ erro('quantidade') }}</span> }
+      </div>
+      <div class="field">
+        <label for="pmin">Estoque mínimo <span class="req">*</span></label>
+        <input id="pmin" type="number" min="0" class="input" formControlName="estoqueMinimo" [class.invalid]="inv('estoqueMinimo')" />
+        @if (inv('estoqueMinimo')) { <span class="error-msg">{{ erro('estoqueMinimo') }}</span> }
+      </div>
+      <div class="field">
+        <label for="pun">Unidade <span class="req">*</span></label>
+        <select id="pun" class="select" formControlName="unidade">
+          @for (u of unidades; track u) { <option [value]="u">{{ u }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="ploc">Localização <span class="req">*</span></label>
+        <input id="ploc" class="input" formControlName="localizacao" placeholder="Ex.: Almox. A · Prateleira 03" [class.invalid]="inv('localizacao')" />
+        @if (inv('localizacao')) { <span class="error-msg">{{ erro('localizacao') }}</span> }
+      </div>
+      <div class="field">
+        <label for="pforn">Fornecedor <span class="req">*</span></label>
+        <input id="pforn" class="input" formControlName="fornecedor" [class.invalid]="inv('fornecedor')" list="fornecedores" />
+        <datalist id="fornecedores">@for (f of fornecedores(); track f) { <option [value]="f"></option> }</datalist>
+        @if (inv('fornecedor')) { <span class="error-msg">{{ erro('fornecedor') }}</span> }
+      </div>
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="formAberto.set(false)">Cancelar</button>
+      <button type="submit" form="formPeca" class="btn btn-primary"><app-icon name="check" [size]="16" /> {{ editandoId() ? 'Salvar alterações' : 'Cadastrar' }}</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: movimentação -->
+@if (movPeca(); as p) {
+  <app-modal title="Movimentar estoque" [subtitle]="p.codigo + ' · ' + p.nome" icon="movimentar" size="md" (close)="movId.set(null)">
+    <div class="saldo">
+      <div><span>Saldo atual</span><strong>{{ p.quantidade }} {{ p.unidade }}</strong></div>
+      <div><span>Estoque mínimo</span><strong>{{ p.estoqueMinimo }} {{ p.unidade }}</strong></div>
+      <div><span>Nível</span><app-badge [value]="nivel(p)" /></div>
+    </div>
+    <form id="formMov" [formGroup]="formMov" (ngSubmit)="movimentar()" class="form-grid">
+      <div class="field full">
+        <label>Tipo de movimentação</label>
+        <div class="tipo-pick">
+          <label class="tp in" [class.sel]="formMov.controls.tipo.value === 'Entrada'"><input type="radio" formControlName="tipo" value="Entrada" /><app-icon name="seta-baixo" [size]="16" /> Entrada</label>
+          <label class="tp out" [class.sel]="formMov.controls.tipo.value === 'Saída'"><input type="radio" formControlName="tipo" value="Saída" /><app-icon name="seta-cima" [size]="16" /> Saída</label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="mqtd">Quantidade ({{ p.unidade }}) <span class="req">*</span></label>
+        <input id="mqtd" type="number" min="0" step="any" class="input" formControlName="quantidade" />
+        @if (formMov.controls.tipo.value === 'Saída' && formMov.controls.quantidade.value > p.quantidade) {
+          <span class="error-msg">Quantidade maior que o saldo disponível.</span>
+        } @else {
+          <span class="hint">Saldo após: {{ formMov.controls.tipo.value === 'Entrada' ? p.quantidade + +formMov.controls.quantidade.value : p.quantidade - formMov.controls.quantidade.value }} {{ p.unidade }}</span>
+        }
+      </div>
+      <div class="field">
+        <label for="mos">Ordem de serviço relacionada</label>
+        <select id="mos" class="select" formControlName="ordemServico">
+          <option value="">Nenhuma</option>
+          @for (o of osAtivas(); track o.id) { <option [value]="o.numero">{{ o.numero }} · {{ eqSvc.obter(o.equipamentoId)?.codigo }}</option> }
+        </select>
+      </div>
+      <div class="field full">
+        <label for="mmot">Motivo <span class="req">*</span></label>
+        <input id="mmot" class="input" formControlName="motivo" />
+      </div>
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="movId.set(null)">Cancelar</button>
+      <button type="submit" form="formMov" class="btn btn-primary"><app-icon name="check" [size]="16" /> Confirmar movimentação</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: histórico -->
+@if (histPeca(); as p) {
+  <app-modal [title]="p.codigo + ' · ' + p.nome" [subtitle]="p.categoria + ' · ' + p.localizacao + ' · ' + p.fornecedor" icon="historico" size="lg" (close)="histId.set(null)">
+    <div class="saldo">
+      <div><span>Saldo atual</span><strong>{{ p.quantidade }} {{ p.unidade }}</strong></div>
+      <div><span>Estoque mínimo</span><strong>{{ p.estoqueMinimo }} {{ p.unidade }}</strong></div>
+      <div><span>Nível</span><app-badge [value]="nivel(p)" /></div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Data</th><th>Tipo</th><th class="text-right">Qtd.</th><th class="text-right">Saldo</th><th>Motivo</th><th>OS</th><th>Responsável</th></tr></thead>
+        <tbody>
+          @for (m of p.movimentacoes; track $index) {
+            <tr>
+              <td class="nowrap">{{ m.data | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td><app-badge [value]="m.tipo" /></td>
+              <td class="text-right mono" [class.text-success]="m.tipo === 'Entrada'" [class.text-danger]="m.tipo === 'Saída'">{{ m.tipo === 'Entrada' ? '+' : '−' }}{{ m.quantidade }}</td>
+              <td class="text-right mono">{{ m.saldo }}</td>
+              <td>{{ m.motivo }}</td>
+              <td class="mono">{{ m.ordemServico || '—' }}</td>
+              <td>{{ m.responsavel }}</td>
+            </tr>
+          } @empty { <tr><td colspan="7" class="muted">Nenhuma movimentação.</td></tr> }
+        </tbody>
+      </table>
+    </div>
+    <div modal-footer>
+      <button class="btn" (click)="editar(p)"><app-icon name="editar" [size]="16" /> Editar</button>
+      <button class="btn" (click)="abrirMov(p, 'Saída')" [disabled]="p.quantidade <= 0"><app-icon name="seta-cima" [size]="16" /> Saída</button>
+      <button class="btn btn-primary" (click)="abrirMov(p, 'Entrada')"><app-icon name="seta-baixo" [size]="16" /> Entrada</button>
+    </div>
+  </app-modal>
+}

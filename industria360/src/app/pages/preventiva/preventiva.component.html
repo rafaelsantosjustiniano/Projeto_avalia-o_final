@@ -1,0 +1,203 @@
+<div class="page">
+  <app-page-header title="Manutenção Preventiva" icon="calendario" subtitle="Programação, execução e controle de vencimentos dos planos preventivos">
+    <button class="btn" (click)="exportar()"><app-icon name="download" [size]="16" /> Exportar CSV</button>
+    <button class="btn btn-primary" (click)="novo()"><app-icon name="mais" [size]="16" /> Nova programação</button>
+  </app-page-header>
+
+  <div class="summary">
+    @for (r of resumo(); track r.s) {
+      <button class="sum" [class]="'sum s-' + r.s.split(' ')[0].toLowerCase()" [class.active]="fStatus() === r.s" (click)="fStatus.set(fStatus() === r.s ? '' : r.s)">
+        <span class="v">{{ r.n }}</span><app-badge [value]="r.s" />
+      </button>
+    }
+  </div>
+
+  <div class="demo-note mb-16">
+    <app-icon name="info" [size]="16" />
+    Planos com vencimento em até <b>{{ config.config().diasAlertaPreventiva }} dia(s)</b> são destacados em amarelo; vencidos, em vermelho. O prazo de alerta pode ser alterado em Configurações.
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <app-icon name="busca" [size]="16" />
+      <input class="input" placeholder="Pesquisar por equipamento, tipo ou responsável…" [ngModel]="busca()" (ngModelChange)="busca.set($event)" />
+    </div>
+    <select class="select" [ngModel]="fStatus()" (ngModelChange)="fStatus.set($event)" aria-label="Status">
+      <option value="">Todos os status</option>
+      @for (s of statusLista; track s) { <option [value]="s">{{ s }}</option> }
+    </select>
+    <select class="select" [ngModel]="fFrequencia()" (ngModelChange)="fFrequencia.set($event)" aria-label="Frequência">
+      <option value="">Todas as frequências</option>
+      @for (f of frequencias; track f) { <option [value]="f">{{ f }}</option> }
+    </select>
+    <select class="select" [ngModel]="fTecnico()" (ngModelChange)="fTecnico.set($event)" aria-label="Responsável">
+      <option value="">Todos os responsáveis</option>
+      @for (t of tecSvc.ordenados(); track t.id) { <option [value]="t.id">{{ t.nome }}</option> }
+    </select>
+    @if (busca() || fStatus() || fFrequencia() || fTecnico()) {
+      <button class="btn btn-ghost btn-sm" (click)="limparFiltros()"><app-icon name="fechar" [size]="14" /> Limpar</button>
+    }
+    <span class="count">{{ filtradas().length }} de {{ svc.itens().length }} programações</span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Equipamento</th><th>Tipo / Frequência</th><th>Responsável</th><th>Programada / Última</th><th>Próxima</th><th>Status</th><th class="text-right">Ações</th></tr>
+        </thead>
+        <tbody>
+          @for (p of filtradas(); track p.id) {
+            <tr [class.row-danger]="p.status === 'Atrasada'" [class.row-warning]="p.status === 'Próxima do vencimento'"
+                [class.bg-danger]="p.status === 'Atrasada'" [class.bg-warning]="p.status === 'Próxima do vencimento'" [class.dim]="p.status === 'Suspensa'">
+              <td class="col-eq"><button class="link-btn cell-main" (click)="detalheId.set(p.id)">{{ eqSvc.rotulo(p.equipamentoId) }}</button></td>
+              <td><div>{{ p.tipoManutencao }}</div><div class="cell-sub">{{ p.frequencia }}</div></td>
+              <td>{{ tecSvc.nome(p.tecnicoId) }}</td>
+              <td class="nowrap"><div>{{ p.dataProgramada | date: 'dd/MM/yyyy' }}</div><div class="cell-sub">última: {{ p.ultimaManutencao ? (p.ultimaManutencao | date: 'dd/MM/yyyy') : '—' }}</div></td>
+              <td class="nowrap">
+                <div class="strong" [class.text-danger]="p.status === 'Atrasada'" [class.text-warning]="p.status === 'Próxima do vencimento'">{{ p.proximaManutencao | date: 'dd/MM/yyyy' }}</div>
+                <div class="cell-sub">{{ textoDias(p) }}</div>
+              </td>
+              <td><app-badge [value]="p.status" /></td>
+              <td class="text-right">
+                <div class="actions">
+                  @if (p.situacao === 'Ativo') {
+                    <button class="icon-btn success" title="Registrar execução" (click)="abrirExecucao(p)"><app-icon name="check" [size]="16" /></button>
+                    <button class="icon-btn accent" title="Gerar ordem de serviço" (click)="gerarOS(p)"><app-icon name="os" [size]="16" /></button>
+                  }
+                  <button class="icon-btn" [title]="p.situacao === 'Ativo' ? 'Suspender plano' : 'Reativar plano'" (click)="alternarSituacao(p)">
+                    <app-icon [name]="p.situacao === 'Ativo' ? 'pausa' : 'play'" [size]="15" />
+                  </button>
+                  <button class="icon-btn" title="Editar" (click)="editar(p)"><app-icon name="editar" [size]="16" /></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7"><app-empty-state icon="calendario"><button class="btn btn-sm" (click)="limparFiltros()">Limpar filtros</button></app-empty-state></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: cadastro / edição -->
+@if (formAberto()) {
+  <app-modal [title]="editandoId() ? 'Editar programação preventiva' : 'Nova programação preventiva'" icon="calendario" size="lg" (close)="formAberto.set(false)"
+    subtitle="A próxima manutenção é calculada automaticamente pela frequência">
+    <form id="formPrev" [formGroup]="form" (ngSubmit)="salvar()" novalidate class="form-grid">
+      <div class="field full">
+        <label for="peq">Equipamento <span class="req">*</span></label>
+        <select id="peq" class="select" formControlName="equipamentoId" [class.invalid]="inv('equipamentoId')">
+          <option value="" disabled>Selecione…</option>
+          @for (e of eqSvc.itens(); track e.id) { <option [value]="e.id">{{ e.codigo }} · {{ e.nome }}</option> }
+        </select>
+        @if (inv('equipamentoId')) { <span class="error-msg">{{ erro('equipamentoId') }}</span> }
+      </div>
+      <div class="field">
+        <label for="ptipo">Tipo de manutenção <span class="req">*</span></label>
+        <select id="ptipo" class="select" formControlName="tipoManutencao" [class.invalid]="inv('tipoManutencao')">
+          <option value="" disabled>Selecione…</option>
+          @for (t of tiposPrev; track t) { <option [value]="t">{{ t }}</option> }
+        </select>
+        @if (inv('tipoManutencao')) { <span class="error-msg">{{ erro('tipoManutencao') }}</span> }
+      </div>
+      <div class="field">
+        <label for="ptec">Responsável <span class="req">*</span></label>
+        <select id="ptec" class="select" formControlName="tecnicoId" [class.invalid]="inv('tecnicoId')">
+          <option value="" disabled>Selecione…</option>
+          @for (t of tecSvc.ordenados(); track t.id) { <option [value]="t.id">{{ t.nome }} · {{ t.especialidade }}</option> }
+        </select>
+        @if (inv('tecnicoId')) { <span class="error-msg">{{ erro('tecnicoId') }}</span> }
+      </div>
+      <div class="field">
+        <label for="pfreq">Frequência <span class="req">*</span></label>
+        <select id="pfreq" class="select" formControlName="frequencia">
+          @for (f of frequencias; track f) { <option [value]="f">{{ f }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="pdata">Data programada <span class="req">*</span></label>
+        <input id="pdata" type="date" class="input" formControlName="dataProgramada" [class.invalid]="inv('dataProgramada')" />
+        @if (inv('dataProgramada')) { <span class="error-msg">{{ erro('dataProgramada') }}</span> }
+      </div>
+      <div class="field">
+        <label for="pult">Última manutenção</label>
+        <input id="pult" type="date" class="input" formControlName="ultimaManutencao" />
+        <span class="hint">Opcional. Se informada, a próxima = última + frequência.</span>
+      </div>
+      <div class="field">
+        <label for="psit">Situação do plano</label>
+        <select id="psit" class="select" formControlName="situacao">
+          <option value="Ativo">Ativo</option><option value="Suspenso">Suspenso</option>
+        </select>
+      </div>
+      <div class="field full">
+        <div class="preview">
+          <app-icon name="calendario" [size]="18" />
+          <span>Próxima manutenção prevista:</span>
+          <strong>{{ proximaPrevista() ? (proximaPrevista() | date: 'dd/MM/yyyy') : '—' }}</strong>
+        </div>
+      </div>
+      <div class="field full">
+        <label for="pobs">Observações / procedimento</label>
+        <textarea id="pobs" class="textarea" formControlName="observacoes" placeholder="Instruções, materiais, pontos de inspeção…"></textarea>
+      </div>
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="formAberto.set(false)">Cancelar</button>
+      <button type="submit" form="formPrev" class="btn btn-primary"><app-icon name="check" [size]="16" /> {{ editandoId() ? 'Salvar alterações' : 'Programar' }}</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: registrar execução -->
+@if (executando(); as p) {
+  <app-modal title="Registrar execução" [subtitle]="p.tipoManutencao + ' · ' + eqSvc.rotulo(p.equipamentoId)" icon="check-circulo" size="sm" (close)="executando.set(null)">
+    <form id="formExec" [formGroup]="formExec" (ngSubmit)="registrarExecucao()" class="grid">
+      <div class="field">
+        <label for="edata">Data de execução <span class="req">*</span></label>
+        <input id="edata" type="date" class="input" formControlName="data" />
+      </div>
+      <div class="field">
+        <label for="eobs">Observação</label>
+        <textarea id="eobs" class="textarea" formControlName="observacao" placeholder="Resultado da inspeção, medições, anomalias…"></textarea>
+      </div>
+      <div class="alert alert-info"><app-icon name="info" [size]="16" /> A próxima data será recalculada ({{ p.frequencia }}) e as datas de manutenção do equipamento serão atualizadas.</div>
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="executando.set(null)">Cancelar</button>
+      <button type="submit" form="formExec" class="btn btn-success"><app-icon name="check" [size]="16" /> Registrar</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: detalhes -->
+@if (detalhe(); as p) {
+  <app-modal [title]="p.tipoManutencao" [subtitle]="eqSvc.rotulo(p.equipamentoId)" icon="calendario" size="md" (close)="detalheId.set(null)">
+    <div class="det-top"><app-badge [value]="p.status" /><app-badge [value]="p.situacao" /><span class="tag">{{ p.frequencia }}</span></div>
+    <dl class="details">
+      <div class="item"><dt>Responsável</dt><dd>{{ tecSvc.nome(p.tecnicoId) }}</dd></div>
+      <div class="item"><dt>Data programada</dt><dd>{{ p.dataProgramada | date: 'dd/MM/yyyy' }}</dd></div>
+      <div class="item"><dt>Última manutenção</dt><dd>{{ p.ultimaManutencao ? (p.ultimaManutencao | date: 'dd/MM/yyyy') : '—' }}</dd></div>
+      <div class="item"><dt>Próxima manutenção</dt><dd>{{ p.proximaManutencao | date: 'dd/MM/yyyy' }} ({{ textoDias(p) }})</dd></div>
+      <div class="item full"><dt>Observações</dt><dd>{{ p.observacoes || '—' }}</dd></div>
+    </dl>
+    <hr class="divider" />
+    <h4 class="h4"><app-icon name="historico" [size]="16" /> Execuções registradas ({{ p.execucoes.length }})</h4>
+    <ul class="timeline">
+      @for (x of p.execucoes; track $index) {
+        <li>
+          <div class="t-title">Executada em {{ x.data | date: 'dd/MM/yyyy' }}</div>
+          <div class="t-meta">{{ x.responsavel }}</div>
+          @if (x.observacao) { <div class="t-note">{{ x.observacao }}</div> }
+        </li>
+      } @empty { <li class="muted">Nenhuma execução registrada.</li> }
+    </ul>
+    <div modal-footer>
+      <button class="btn btn-ghost danger-txt" (click)="excluir(p)"><app-icon name="excluir" [size]="16" /> Excluir</button>
+      <button class="btn" (click)="editar(p)"><app-icon name="editar" [size]="16" /> Editar</button>
+      @if (p.situacao === 'Ativo') { <button class="btn btn-success" (click)="abrirExecucao(p)"><app-icon name="check" [size]="16" /> Registrar execução</button> }
+    </div>
+  </app-modal>
+}

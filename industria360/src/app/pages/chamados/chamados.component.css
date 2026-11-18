@@ -1,0 +1,21 @@
+.critical-banner { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 16px; border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, rgba(220,38,38,.18), rgba(220,38,38,.05)); border: 1px solid rgba(220,38,38,.45); animation: fadeUp .3s ease; }
+.critical-banner div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.critical-banner strong { color: var(--text); }
+.critical-banner span { font-size: 12.5px; color: var(--text-muted); }
+.pulse { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--red); color: #fff; flex: none; animation: pulse 1.6s infinite; }
+tr.crit { background: rgba(220, 38, 38, 0.06); }
+.link-btn { border: 0; background: none; padding: 0; font: inherit; cursor: pointer; color: var(--orange); }
+.link-btn:hover { text-decoration: underline; }
+.desc { max-width: 340px; }
+.ellip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; max-width: 300px; }
+.auto-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 12px 14px; margin-bottom: 18px; border-radius: var(--radius); background: var(--surface-2); border: 1px dashed var(--border-strong); }
+.auto-info div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.auto-info span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); font-weight: 600; }
+.prio-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.prio { --pc: #64748B; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong); cursor: pointer; font-size: 13px; font-weight: 600; background: var(--input-bg); }
+.prio input { accent-color: var(--pc); }
+.prio.sel { border-color: var(--pc); color: var(--pc); background: color-mix(in srgb, var(--pc) 12%, transparent); }
+.det-top { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.danger-txt { color: #F87171; margin-right: auto; }
+@media (max-width: 560px) { .auto-info { grid-template-columns: 1fr; } .critical-banner { flex-wrap: wrap; } }

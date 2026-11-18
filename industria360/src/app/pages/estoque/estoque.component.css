@@ -1,0 +1,24 @@
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.sum { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; border-radius: var(--radius-lg); cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text); border-left: 4px solid var(--c); transition: all .15s; font: inherit; }
+.sum:hover { transform: translateY(-1px); border-color: var(--border-strong); border-left-color: var(--c); }
+.sum.active { border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, var(--surface)); }
+.sum .v { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sum .l { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+.s-all { --c: #3B82F6; } .s-normal { --c: #16A34A; } .s-baixo { --c: #EAB308; } .s-zerado { --c: #DC2626; }
+.link-btn { border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; color: var(--text); }
+.link-btn:hover { color: var(--orange); }
+.qty { min-width: 120px; }
+.qty-top { margin-bottom: 6px; }
+.qty-top strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.saldo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 12px 14px; margin-bottom: 18px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); }
+.saldo div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.saldo span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); font-weight: 600; }
+.saldo strong { font-size: 17px; }
+.tipo-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tp { display: flex; align-items: center; justify-content: center; gap: 8px; height: 44px; border-radius: 8px; border: 1px solid var(--border-strong); cursor: pointer; font-weight: 600; background: var(--input-bg); }
+.tp input { display: none; }
+.tp.in.sel { border-color: var(--green); color: #4ADE80; background: rgba(22,163,74,.12); }
+.tp.out.sel { border-color: var(--orange); color: var(--orange); background: rgba(245,158,11,.12); }
+.icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+@media (max-width: 860px) { .summary { grid-template-columns: repeat(2, 1fr); } .saldo { grid-template-columns: 1fr 1fr; } }

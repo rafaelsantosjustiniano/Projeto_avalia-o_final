@@ -1,0 +1,225 @@
+<div class="page">
+  <app-page-header title="Chamados" icon="chamado" subtitle="Abertura e triagem de solicitações de manutenção">
+    <button class="btn" (click)="exportar()"><app-icon name="download" [size]="16" /> Exportar CSV</button>
+    <button class="btn btn-primary" (click)="novo()"><app-icon name="mais" [size]="16" /> Abrir chamado</button>
+  </app-page-header>
+
+  @if (criticosAbertos().length) {
+    <div class="critical-banner">
+      <span class="pulse"><app-icon name="alerta" [size]="20" /></span>
+      <div>
+        <strong>{{ criticosAbertos().length }} chamado(s) crítico(s) aguardando tratamento</strong>
+        <span>
+          @for (c of criticosAbertos(); track c.id; let last = $last) { {{ c.protocolo }} ({{ eqSvc.obter(c.equipamentoId)?.codigo }}){{ last ? '' : ' · ' }} }
+        </span>
+      </div>
+      <button class="btn btn-danger btn-sm" (click)="fPrioridade.set(critica()); fStatus.set('__abertos')">Ver críticos</button>
+    </div>
+  }
+
+  <div class="chips">
+    <button class="chip" [class.active]="!fStatus()" (click)="fStatus.set('')">Todos <span class="n">{{ svc.itens().length }}</span></button>
+    <button class="chip" [class.active]="fStatus() === '__abertos'" (click)="fStatus.set('__abertos')">Em aberto</button>
+    @for (c of contagem(); track c.s) {
+      <button class="chip" [class.active]="fStatus() === c.s" (click)="fStatus.set(fStatus() === c.s ? '' : c.s)"><app-badge [value]="c.s" /> <span class="n">{{ c.n }}</span></button>
+    }
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <app-icon name="busca" [size]="16" />
+      <input class="input" placeholder="Pesquisar por protocolo, solicitante, equipamento ou descrição…" [ngModel]="busca()" (ngModelChange)="busca.set($event)" />
+    </div>
+    <select class="select" [ngModel]="fPrioridade()" (ngModelChange)="fPrioridade.set($event)" aria-label="Prioridade">
+      <option value="">Todas as prioridades</option>
+      @for (p of config.config().prioridades; track p.nome) { <option [value]="p.nome">{{ p.nome }}</option> }
+    </select>
+    <select class="select" [ngModel]="fCategoria()" (ngModelChange)="fCategoria.set($event)" aria-label="Categoria">
+      <option value="">Todas as categorias</option>
+      @for (c of config.config().categoriasChamado; track c) { <option [value]="c">{{ c }}</option> }
+    </select>
+    @if (busca() || fStatus() || fPrioridade() || fCategoria()) {
+      <button class="btn btn-ghost btn-sm" (click)="limparFiltros()"><app-icon name="fechar" [size]="14" /> Limpar</button>
+    }
+    <span class="count">{{ filtrados().length }} de {{ svc.itens().length }} chamados</span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Protocolo / Abertura</th><th>Equipamento / Descrição</th><th>Solicitante / Categoria</th><th>Prioridade</th><th>Status</th><th class="text-right">Ações</th></tr>
+        </thead>
+        <tbody>
+          @for (c of filtrados(); track c.id) {
+            <tr [class.row-danger]="ehCritico(c)" [class.crit]="ehCritico(c)">
+              <td class="col-num"><button class="link-btn mono strong" (click)="detalheId.set(c.id)">{{ c.protocolo }}</button>
+                <div class="cell-sub">{{ c.dataHora | date: 'dd/MM/yyyy HH:mm' }}</div></td>
+              <td class="desc col-eq">
+                <div class="cell-main">{{ eqSvc.rotulo(c.equipamentoId) }}</div>
+                <div class="cell-sub ellip">{{ c.descricao }}</div>
+              </td>
+              <td><div>{{ c.solicitante }}</div><div class="cell-sub">{{ c.categoria }}</div></td>
+              <td><app-badge [value]="c.prioridade" /></td>
+              <td>
+                <app-badge [value]="c.status" />
+                @if (c.ordemServicoId) { <div class="cell-sub"><button class="link-btn small" (click)="verOS(c)">{{ numeroOS(c.ordemServicoId) }}</button></div> }
+              </td>
+              <td class="text-right">
+                <div class="actions">
+                  @if (emAberto(c)) {
+                    <button class="icon-btn accent" title="Converter em ordem de serviço" (click)="abrirConversao(c)"><app-icon name="os" [size]="16" /></button>
+                    @if (c.status === 'Aberto') {
+                      <button class="icon-btn" title="Colocar em análise" (click)="alterarStatus(c, 'Em análise')"><app-icon name="busca" [size]="15" /></button>
+                    }
+                    <button class="icon-btn success" title="Marcar como resolvido" (click)="alterarStatus(c, 'Resolvido')"><app-icon name="check" [size]="16" /></button>
+                  }
+                  <button class="icon-btn" title="Detalhes" (click)="detalheId.set(c.id)"><app-icon name="ver" [size]="16" /></button>
+                  <button class="icon-btn" title="Editar" (click)="editar(c)"><app-icon name="editar" [size]="16" /></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6"><app-empty-state icon="chamado"><button class="btn btn-sm" (click)="limparFiltros()">Limpar filtros</button></app-empty-state></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: abrir / editar chamado -->
+@if (formAberto()) {
+  <app-modal [title]="editandoId() ? 'Editar chamado ' + (svc.obter(editandoId())?.protocolo ?? '') : 'Abrir chamado de manutenção'" icon="chamado" size="lg"
+    subtitle="Protocolo, data e horário são gerados automaticamente" (close)="formAberto.set(false)">
+    @if (!editandoId()) {
+      <div class="auto-info">
+        <div><span>Protocolo</span><strong class="mono">{{ svc.proximoProtocolo() }}</strong></div>
+        <div><span>Data e horário</span><strong>{{ agora | date: 'dd/MM/yyyy HH:mm' }}</strong></div>
+        <div><span>Status inicial</span><app-badge value="Aberto" /></div>
+      </div>
+    }
+    <form id="formCh" [formGroup]="form" (ngSubmit)="salvar()" novalidate class="form-grid">
+      <div class="field">
+        <label for="sol">Solicitante <span class="req">*</span></label>
+        <input id="sol" class="input" formControlName="solicitante" placeholder="Nome de quem está abrindo o chamado" [class.invalid]="inv('solicitante')" />
+        @if (inv('solicitante')) { <span class="error-msg">{{ erro('solicitante') }}</span> }
+      </div>
+      <div class="field">
+        <label for="eqc">Equipamento <span class="req">*</span></label>
+        <select id="eqc" class="select" formControlName="equipamentoId" [class.invalid]="inv('equipamentoId')">
+          <option value="" disabled>Selecione…</option>
+          @for (e of eqSvc.itens(); track e.id) { <option [value]="e.id">{{ e.codigo }} · {{ e.nome }}</option> }
+        </select>
+        @if (inv('equipamentoId')) { <span class="error-msg">{{ erro('equipamentoId') }}</span> }
+      </div>
+      <div class="field">
+        <label for="set">Setor <span class="req">*</span></label>
+        <select id="set" class="select" formControlName="setor" [class.invalid]="inv('setor')">
+          <option value="" disabled>Selecione…</option>
+          @for (s of config.config().setores; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+        @if (inv('setor')) { <span class="error-msg">{{ erro('setor') }}</span> } @else { <span class="hint">Preenchido a partir do equipamento.</span> }
+      </div>
+      <div class="field">
+        <label for="loc">Localização <span class="req">*</span></label>
+        <input id="loc" class="input" formControlName="localizacao" [class.invalid]="inv('localizacao')" />
+        @if (inv('localizacao')) { <span class="error-msg">{{ erro('localizacao') }}</span> }
+      </div>
+      <div class="field">
+        <label for="cat">Categoria <span class="req">*</span></label>
+        <select id="cat" class="select" formControlName="categoria" [class.invalid]="inv('categoria')">
+          <option value="" disabled>Selecione…</option>
+          @for (c of config.config().categoriasChamado; track c) { <option [value]="c">{{ c }}</option> }
+        </select>
+        @if (inv('categoria')) { <span class="error-msg">{{ erro('categoria') }}</span> }
+      </div>
+      <div class="field">
+        <label>Prioridade <span class="req">*</span></label>
+        <div class="prio-pick">
+          @for (p of config.config().prioridades; track p.nome) {
+            <label class="prio" [class.sel]="form.controls.prioridade.value === p.nome" [style.--pc]="p.cor">
+              <input type="radio" formControlName="prioridade" [value]="p.nome" /> {{ p.nome }}
+            </label>
+          }
+        </div>
+      </div>
+      <div class="field full">
+        <label for="dsc">Descrição <span class="req">*</span></label>
+        <textarea id="dsc" class="textarea" formControlName="descricao" placeholder="Descreva o problema observado, sintomas, alarmes, riscos…" [class.invalid]="inv('descricao')"></textarea>
+        @if (inv('descricao')) { <span class="error-msg">{{ erro('descricao') }}</span> }
+      </div>
+      @if (form.controls.prioridade.value === critica()) {
+        <div class="alert alert-danger full"><app-icon name="alerta" [size]="16" /> Chamados críticos são destacados em vermelho em todo o sistema e geram alerta no cabeçalho.</div>
+      }
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="formAberto.set(false)">Cancelar</button>
+      <button type="submit" form="formCh" class="btn btn-primary"><app-icon name="check" [size]="16" /> {{ editandoId() ? 'Salvar alterações' : 'Registrar chamado' }}</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: converter em OS -->
+@if (convertendo(); as c) {
+  <app-modal [title]="'Converter chamado em OS'" [subtitle]="c.protocolo + ' · ' + eqSvc.rotulo(c.equipamentoId)" icon="os" size="md" (close)="convertendo.set(null)">
+    <form id="formConv" [formGroup]="formOS" (ngSubmit)="converter()" class="form-grid">
+      <div class="field">
+        <label for="ctipo">Tipo de manutenção</label>
+        <select id="ctipo" class="select" formControlName="tipo">
+          @for (t of tipos; track t) { <option [value]="t">{{ t }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="cprio">Prioridade</label>
+        <select id="cprio" class="select" formControlName="prioridade">
+          @for (p of config.config().prioridades; track p.nome) { <option [value]="p.nome">{{ p.nome }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="ctec">Técnico responsável</label>
+        <select id="ctec" class="select" formControlName="tecnicoId">
+          <option value="">Não atribuído</option>
+          @for (t of tecSvc.ordenados(); track t.id) { <option [value]="t.id">{{ t.nome }} ({{ t.situacao }})</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="cprazo">Prazo de conclusão <span class="req">*</span></label>
+        <input id="cprazo" type="date" class="input" formControlName="prazo" />
+      </div>
+      <div class="field full">
+        <label for="cdesc">Descrição da OS <span class="req">*</span></label>
+        <textarea id="cdesc" class="textarea" formControlName="descricao"></textarea>
+      </div>
+      <div class="alert alert-info full"><app-icon name="info" [size]="16" /> A OS receberá número automático ({{ osSvc.proximoNumero() }}) e o chamado ficará vinculado com status "Convertido em OS".</div>
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="convertendo.set(null)">Cancelar</button>
+      <button type="submit" form="formConv" class="btn btn-primary"><app-icon name="os" [size]="16" /> Gerar ordem de serviço</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: detalhes -->
+@if (detalhe(); as c) {
+  <app-modal [title]="'Chamado ' + c.protocolo" [subtitle]="'Aberto em ' + (c.dataHora | date: 'dd/MM/yyyy HH:mm')" icon="chamado" size="md" (close)="detalheId.set(null)">
+    <div class="det-top"><app-badge [value]="c.status" /><app-badge [value]="c.prioridade" /><span class="tag">{{ c.categoria }}</span></div>
+    <dl class="details">
+      <div class="item"><dt>Solicitante</dt><dd>{{ c.solicitante }}</dd></div>
+      <div class="item"><dt>Equipamento</dt><dd>{{ eqSvc.rotulo(c.equipamentoId) }}</dd></div>
+      <div class="item"><dt>Setor</dt><dd>{{ c.setor }}</dd></div>
+      <div class="item"><dt>Localização</dt><dd>{{ c.localizacao }}</dd></div>
+      <div class="item full"><dt>Descrição</dt><dd>{{ c.descricao }}</dd></div>
+      @if (c.ordemServicoId) { <div class="item"><dt>Ordem de serviço</dt><dd><button class="link-btn" (click)="verOS(c)">{{ numeroOS(c.ordemServicoId) }}</button></dd></div> }
+    </dl>
+    <div modal-footer>
+      <button class="btn btn-ghost danger-txt" (click)="excluir(c)"><app-icon name="excluir" [size]="16" /> Excluir</button>
+      @if (emAberto(c)) {
+        <button class="btn" (click)="cancelar(c)">Cancelar chamado</button>
+        <button class="btn btn-primary" (click)="abrirConversao(c)"><app-icon name="os" [size]="16" /> Converter em OS</button>
+      } @else {
+        <button class="btn btn-primary" (click)="editar(c)"><app-icon name="editar" [size]="16" /> Editar</button>
+      }
+    </div>
+  </app-modal>
+}

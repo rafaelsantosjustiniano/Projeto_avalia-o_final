@@ -1,0 +1,33 @@
+<aside class="sidebar">
+  <div class="brand">
+    <app-logo [size]="40" />
+  </div>
+
+  <nav class="nav" aria-label="Menu principal">
+    @for (g of grupos; track g.titulo) {
+      <div class="group">
+        <span class="group-title">{{ g.titulo }}</span>
+        @for (item of g.itens; track item.rota) {
+          <a class="link" [routerLink]="item.rota" routerLinkActive="active" (click)="navegou.emit()">
+            <app-icon [name]="item.icone" [size]="18" />
+            <span class="txt">{{ item.rotulo }}</span>
+            @if (item.contador && item.contador() > 0) {
+              <span class="count" [class]="'count c-' + item.tom">{{ item.contador() }}</span>
+            }
+          </a>
+        }
+      </div>
+    }
+  </nav>
+
+  <div class="footer">
+    <div class="unit">
+      <app-icon name="fabrica" [size]="16" />
+      <div>
+        <strong>{{ config.config().unidade }}</strong>
+        <span>{{ config.config().empresa }}</span>
+      </div>
+    </div>
+    <div class="ver">INDUSTRIA360 · MVP v1.0 · Demonstração</div>
+  </div>
+</aside>

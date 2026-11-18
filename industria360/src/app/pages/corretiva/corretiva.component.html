@@ -1,0 +1,240 @@
+<div class="page">
+  <app-page-header title="Manutenção Corretiva" icon="ferramenta" subtitle="Registro de falhas, diagnóstico, reparo e acompanhamento do tempo de parada">
+    <button class="btn" (click)="exportar()"><app-icon name="download" [size]="16" /> Exportar CSV</button>
+    <button class="btn btn-primary" (click)="novo()"><app-icon name="mais" [size]="16" /> Registrar falha</button>
+  </app-page-header>
+
+  <div class="kpis">
+    <button class="k" [class.active]="fStatus() === '__andamento'" (click)="fStatus.set(fStatus() === '__andamento' ? '' : '__andamento')">
+      <span class="ic t-orange"><app-icon name="ferramenta" /></span><div><strong>{{ indicadores().andamento }}</strong><span>Em andamento</span></div>
+    </button>
+    <button class="k" [class.active]="fStatus() === 'Aguardando peças'" (click)="fStatus.set(fStatus() === 'Aguardando peças' ? '' : 'Aguardando peças')">
+      <span class="ic t-purple"><app-icon name="estoque" /></span><div><strong>{{ indicadores().aguardandoPecas }}</strong><span>Aguardando peças</span></div>
+    </button>
+    <button class="k" [class.active]="fStatus() === 'Concluída'" (click)="fStatus.set(fStatus() === 'Concluída' ? '' : 'Concluída')">
+      <span class="ic t-success"><app-icon name="check-circulo" /></span><div><strong>{{ indicadores().concluidas }}</strong><span>Concluídas</span></div>
+    </button>
+    <div class="k static">
+      <span class="ic t-danger"><app-icon name="relogio" /></span><div><strong>{{ indicadores().parada | number: '1.0-1' }} h</strong><span>Tempo total de parada</span></div>
+    </div>
+    <div class="k static">
+      <span class="ic t-info"><app-icon name="medidor" /></span><div><strong>{{ indicadores().mttr | number: '1.0-1' }} h</strong><span>MTTR (tempo médio de reparo)</span></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <app-icon name="busca" [size]="16" />
+      <input class="input" placeholder="Pesquisar por falha, causa, equipamento ou técnico…" [ngModel]="busca()" (ngModelChange)="busca.set($event)" />
+    </div>
+    <select class="select" [ngModel]="fStatus()" (ngModelChange)="fStatus.set($event)" aria-label="Status">
+      <option value="">Todos os status</option>
+      <option value="__andamento">Em andamento</option>
+      @for (s of etapas; track s) { <option [value]="s">{{ s }}</option> }
+    </select>
+    <select class="select" [ngModel]="fPrioridade()" (ngModelChange)="fPrioridade.set($event)" aria-label="Prioridade">
+      <option value="">Todas as prioridades</option>
+      @for (p of config.config().prioridades; track p.nome) { <option [value]="p.nome">{{ p.nome }}</option> }
+    </select>
+    <select class="select" [ngModel]="fEquip()" (ngModelChange)="fEquip.set($event)" aria-label="Equipamento">
+      <option value="">Todos os equipamentos</option>
+      @for (e of eqSvc.itens(); track e.id) { <option [value]="e.id">{{ e.codigo }} · {{ e.nome }}</option> }
+    </select>
+    @if (busca() || fStatus() || fPrioridade() || fEquip()) {
+      <button class="btn btn-ghost btn-sm" (click)="limparFiltros()"><app-icon name="fechar" [size]="14" /> Limpar</button>
+    }
+    <span class="count">{{ filtradas().length }} de {{ svc.itens().length }} registros</span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Equipamento / Falha</th><th>Ocorrência</th><th>Prioridade</th><th>Técnico / Parada</th><th>Causa / Solução</th><th>Andamento</th><th class="text-right">Ações</th></tr>
+        </thead>
+        <tbody>
+          @for (c of filtradas(); track c.id) {
+            <tr [class.row-danger]="c.prioridade === config.prioridadeCritica() && c.status !== 'Concluída'" [class.row-success]="c.status === 'Concluída'">
+              <td class="desc col-eq">
+                <button class="link-btn cell-main" (click)="detalheId.set(c.id)">{{ eqSvc.rotulo(c.equipamentoId) }}</button>
+                <div class="cell-sub ellip">{{ c.descricaoFalha }}</div>
+              </td>
+              <td class="nowrap">{{ c.dataOcorrencia | date: 'dd/MM/yyyy' }}<div class="cell-sub">{{ c.dataOcorrencia | date: 'HH:mm' }}</div></td>
+              <td><app-badge [value]="c.prioridade" /></td>
+              <td>
+                <div>@if (c.tecnicoId) { {{ tecSvc.nome(c.tecnicoId) }} } @else { <span class="muted">Não atribuído</span> }</div>
+                <div class="cell-sub mono" [class.text-danger]="c.tempoParadaHoras >= 24">{{ c.tempoParadaHoras | number: '1.0-1' }} h de parada</div>
+              </td>
+              <td class="cs">
+                <div class="ellip" [class.muted]="!c.causa">{{ c.causa || 'Causa em investigação' }}</div>
+                <div class="cell-sub ellip">{{ c.solucao || '—' }}</div>
+              </td>
+              <td class="prog-cell">
+                <app-badge [value]="c.status" />
+                <div class="progress" [class]="'progress ' + tomProgresso(c)"><span [style.width.%]="progresso(c)"></span></div>
+              </td>
+              <td class="text-right">
+                <div class="actions">
+                  @if (c.status !== 'Concluída') {
+                    <button class="icon-btn success" title="Registrar andamento" (click)="abrirAndamento(c)"><app-icon name="atividade" [size]="16" /></button>
+                  }
+                  <button class="icon-btn accent" [title]="c.ordemServicoId ? 'Ver OS ' + numeroOS(c.ordemServicoId) : 'Gerar ordem de serviço'" (click)="gerarOS(c)"><app-icon name="os" [size]="16" /></button>
+                  <button class="icon-btn" title="Detalhes e linha do tempo" (click)="detalheId.set(c.id)"><app-icon name="historico" [size]="16" /></button>
+                  <button class="icon-btn" title="Editar" (click)="editar(c)"><app-icon name="editar" [size]="16" /></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7"><app-empty-state icon="ferramenta"><button class="btn btn-sm" (click)="limparFiltros()">Limpar filtros</button></app-empty-state></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: cadastro / edição -->
+@if (formAberto()) {
+  <app-modal [title]="editandoId() ? 'Editar manutenção corretiva' : 'Registrar falha / manutenção corretiva'" icon="ferramenta" size="lg" (close)="formAberto.set(false)">
+    <form id="formCorr" [formGroup]="form" (ngSubmit)="salvar()" novalidate class="form-grid">
+      <div class="field full">
+        <label for="ceq">Equipamento com falha <span class="req">*</span></label>
+        <select id="ceq" class="select" formControlName="equipamentoId" [class.invalid]="inv('equipamentoId')">
+          <option value="" disabled>Selecione…</option>
+          @for (e of eqSvc.itens(); track e.id) { <option [value]="e.id">{{ e.codigo }} · {{ e.nome }} ({{ e.situacao }})</option> }
+        </select>
+        @if (inv('equipamentoId')) { <span class="error-msg">{{ erro('equipamentoId') }}</span> }
+      </div>
+      <div class="field full">
+        <label for="cfalha">Descrição da falha <span class="req">*</span></label>
+        <textarea id="cfalha" class="textarea" formControlName="descricaoFalha" [class.invalid]="inv('descricaoFalha')" placeholder="Sintomas observados, alarmes, condição de operação…"></textarea>
+        @if (inv('descricaoFalha')) { <span class="error-msg">{{ erro('descricaoFalha') }}</span> }
+      </div>
+      <div class="field">
+        <label for="cdata">Data da ocorrência <span class="req">*</span></label>
+        <input id="cdata" type="datetime-local" class="input" formControlName="dataOcorrencia" [class.invalid]="inv('dataOcorrencia')" />
+        @if (inv('dataOcorrencia')) { <span class="error-msg">{{ erro('dataOcorrencia') }}</span> }
+      </div>
+      <div class="field">
+        <label for="cprio">Prioridade <span class="req">*</span></label>
+        <select id="cprio" class="select" formControlName="prioridade">
+          @for (p of config.config().prioridades; track p.nome) { <option [value]="p.nome">{{ p.nome }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="ctec">Técnico responsável</label>
+        <select id="ctec" class="select" formControlName="tecnicoId">
+          <option value="">Não atribuído</option>
+          @for (t of tecSvc.ordenados(); track t.id) { <option [value]="t.id">{{ t.nome }} · {{ t.especialidade }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="cpar">Tempo de parada (horas) <span class="req">*</span></label>
+        <input id="cpar" type="number" min="0" step="0.5" class="input" formControlName="tempoParadaHoras" [class.invalid]="inv('tempoParadaHoras')" />
+        @if (inv('tempoParadaHoras')) { <span class="error-msg">{{ erro('tempoParadaHoras') }}</span> }
+      </div>
+      <div class="field">
+        <label for="ccausa">Causa identificada</label>
+        <input id="ccausa" class="input" formControlName="causa" placeholder="Preencha após o diagnóstico" />
+      </div>
+      <div class="field">
+        <label for="cst">Status</label>
+        <select id="cst" class="select" formControlName="status">
+          @for (s of etapas; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </div>
+      <div class="field full">
+        <label for="csol">Solução aplicada</label>
+        <textarea id="csol" class="textarea" formControlName="solucao" placeholder="Obrigatória para concluir"></textarea>
+      </div>
+      @if (!editandoId()) {
+        <label class="checkbox full"><input type="checkbox" formControlName="marcarEquipamento" /> Atualizar a situação do equipamento para "Em manutenção" (ou "Crítico" se a prioridade for crítica)</label>
+      }
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="formAberto.set(false)">Cancelar</button>
+      <button type="submit" form="formCorr" class="btn btn-primary"><app-icon name="check" [size]="16" /> {{ editandoId() ? 'Salvar alterações' : 'Registrar' }}</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: registrar andamento -->
+@if (andamentoItem(); as c) {
+  <app-modal title="Registrar andamento" [subtitle]="eqSvc.rotulo(c.equipamentoId) + ' · atual: ' + c.status" icon="atividade" size="md" (close)="andamentoId.set(null)">
+    <div class="stepper">
+      @for (e of ['Aberta', 'Em diagnóstico', 'Em reparo', 'Concluída']; track e; let i = $index) {
+        <div class="step" [class.done]="i < etapaIndex(c.status)" [class.current]="i === etapaIndex(c.status)">
+          <span class="n">{{ i + 1 }}</span><span class="t">{{ e }}</span>
+        </div>
+      }
+    </div>
+    <form id="formAnd" [formGroup]="formAnd" (ngSubmit)="registrarAndamento()" class="form-grid">
+      <div class="field">
+        <label for="ast">Nova etapa</label>
+        <select id="ast" class="select" formControlName="status">
+          @for (s of etapas; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="apar">Tempo de parada acumulado (h)</label>
+        <input id="apar" type="number" min="0" step="0.5" class="input" formControlName="tempoParadaHoras" />
+      </div>
+      <div class="field full">
+        <label for="anota">Nota de andamento <span class="req">*</span></label>
+        <textarea id="anota" class="textarea" formControlName="nota" placeholder="O que foi feito nesta etapa?" [class.invalid]="formAnd.controls.nota.invalid && formAnd.controls.nota.touched"></textarea>
+      </div>
+      <div class="field">
+        <label for="acausa">Causa identificada</label>
+        <input id="acausa" class="input" formControlName="causa" />
+      </div>
+      <div class="field">
+        <label for="asol">Solução aplicada</label>
+        <input id="asol" class="input" formControlName="solucao" />
+      </div>
+      @if (formAnd.controls.status.value === 'Concluída') {
+        <label class="checkbox full"><input type="checkbox" formControlName="liberarEquipamento" /> Liberar equipamento (situação "Em operação" e última manutenção = hoje)</label>
+      }
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="andamentoId.set(null)">Cancelar</button>
+      <button type="submit" form="formAnd" class="btn btn-primary"><app-icon name="check" [size]="16" /> Registrar andamento</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: detalhes -->
+@if (detalhe(); as c) {
+  <app-modal [title]="eqSvc.rotulo(c.equipamentoId)" [subtitle]="'Ocorrência em ' + (c.dataOcorrencia | date: 'dd/MM/yyyy HH:mm')" icon="ferramenta" size="lg" (close)="detalheId.set(null)">
+    <div class="det-top">
+      <app-badge [value]="c.status" /><app-badge [value]="c.prioridade" />
+      <span class="tag"><app-icon name="relogio" [size]="12" /> {{ c.tempoParadaHoras | number: '1.0-1' }} h de parada</span>
+      @if (c.ordemServicoId) { <span class="tag"><app-icon name="os" [size]="12" /> {{ numeroOS(c.ordemServicoId) }}</span> }
+    </div>
+    <div class="det-grid">
+      <dl class="details">
+        <div class="item full"><dt>Descrição da falha</dt><dd>{{ c.descricaoFalha }}</dd></div>
+        <div class="item"><dt>Técnico responsável</dt><dd>{{ tecSvc.nome(c.tecnicoId) }}</dd></div>
+        <div class="item"><dt>Conclusão</dt><dd>{{ c.dataConclusao ? (c.dataConclusao | date: 'dd/MM/yyyy HH:mm') : '—' }}</dd></div>
+        <div class="item full"><dt>Causa identificada</dt><dd>{{ c.causa || '—' }}</dd></div>
+        <div class="item full"><dt>Solução aplicada</dt><dd>{{ c.solucao || '—' }}</dd></div>
+      </dl>
+      <div>
+        <h4 class="h4"><app-icon name="historico" [size]="16" /> Linha do tempo</h4>
+        <ul class="timeline">
+          @for (a of c.andamento.slice().reverse(); track $index) {
+            <li>
+              <div class="t-title"><app-badge [value]="a.status" /></div>
+              <div class="t-meta">{{ a.data | date: 'dd/MM/yyyy HH:mm' }} · {{ a.responsavel }}</div>
+              <div class="t-note">{{ a.nota }}</div>
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+    <div modal-footer>
+      <button class="btn btn-ghost danger-txt" (click)="excluir(c)"><app-icon name="excluir" [size]="16" /> Excluir</button>
+      <button class="btn" (click)="editar(c)"><app-icon name="editar" [size]="16" /> Editar</button>
+      @if (c.status !== 'Concluída') { <button class="btn btn-primary" (click)="abrirAndamento(c)"><app-icon name="atividade" [size]="16" /> Registrar andamento</button> }
+    </div>
+  </app-modal>
+}

@@ -1,0 +1,227 @@
+<div class="page">
+  <app-page-header title="Equipamentos" icon="equipamento" subtitle="Cadastro e gestão dos ativos industriais da unidade">
+    <button class="btn" (click)="exportar()"><app-icon name="download" [size]="16" /> Exportar CSV</button>
+    <button class="btn btn-primary" (click)="novo()"><app-icon name="mais" [size]="16" /> Novo equipamento</button>
+  </app-page-header>
+
+  <!-- Filtro rápido por situação -->
+  <div class="chips">
+    <button class="chip" [class.active]="!fSituacao()" (click)="fSituacao.set('')">Todos <span class="n">{{ svc.itens().length }}</span></button>
+    @for (c of contagem(); track c.s) {
+      <button class="chip" [class.active]="fSituacao() === c.s" (click)="fSituacao.set(fSituacao() === c.s ? '' : c.s)">
+        <app-badge [value]="c.s" /> <span class="n">{{ c.n }}</span>
+      </button>
+    }
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <app-icon name="busca" [size]="16" />
+      <input class="input" placeholder="Pesquisar por nome, código, nº de série ou fabricante…" [ngModel]="busca()" (ngModelChange)="busca.set($event)" />
+    </div>
+    <select class="select" [ngModel]="fCategoria()" (ngModelChange)="fCategoria.set($event)" aria-label="Filtrar por categoria">
+      <option value="">Todas as categorias</option>
+      @for (c of config.config().categoriasEquipamento; track c) { <option [value]="c">{{ c }}</option> }
+    </select>
+    <select class="select" [ngModel]="fSetor()" (ngModelChange)="fSetor.set($event)" aria-label="Filtrar por setor">
+      <option value="">Todos os setores</option>
+      @for (s of config.config().setores; track s) { <option [value]="s">{{ s }}</option> }
+    </select>
+    <select class="select" [ngModel]="fSituacao()" (ngModelChange)="fSituacao.set($event)" aria-label="Filtrar por situação">
+      <option value="">Todas as situações</option>
+      @for (s of situacoes; track s) { <option [value]="s">{{ s }}</option> }
+    </select>
+    @if (busca() || fCategoria() || fSetor() || fSituacao()) {
+      <button class="btn btn-ghost btn-sm" (click)="limparFiltros()"><app-icon name="fechar" [size]="14" /> Limpar</button>
+    }
+    <span class="count">{{ filtrados().length }} de {{ svc.itens().length }} equipamentos</span>
+  </div>
+
+  <div class="table-card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Código</th><th>Equipamento</th><th>Categoria</th><th>Setor / Localização</th>
+            <th>Manutenção</th><th>Situação</th><th class="text-right">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of filtrados(); track e.id) {
+            <tr [class.row-danger]="e.situacao === 'Crítico'">
+              <td class="mono strong">{{ e.codigo }}</td>
+              <td class="col-eq">
+                <button class="link-btn cell-main" (click)="detalhe.set(e)">{{ e.nome }}</button>
+                <div class="cell-sub">{{ e.fabricante }} · {{ e.modelo }}</div>
+              </td>
+              <td>{{ e.categoria }}</td>
+              <td><div>{{ e.setor }}</div><div class="cell-sub">{{ e.localizacao }}</div></td>
+              <td class="nowrap">
+                @if (e.proximaManutencao) {
+                  próx. <span [class]="'due due-' + alertaManutencao(e)">
+                    @if (alertaManutencao(e)) { <app-icon name="alerta" [size]="13" /> }
+                    {{ e.proximaManutencao | date: 'dd/MM/yyyy' }}
+                  </span>
+                } @else { — }
+                <div class="cell-sub">última: {{ e.ultimaManutencao ? (e.ultimaManutencao | date: 'dd/MM/yyyy') : '—' }}</div>
+              </td>
+              <td><app-badge [value]="e.situacao" /></td>
+              <td class="text-right">
+                <div class="actions">
+                  <button class="icon-btn" title="Visualizar detalhes" (click)="detalhe.set(e)"><app-icon name="ver" [size]="16" /></button>
+                  <button class="icon-btn accent" title="Abrir ordem de serviço" (click)="abrirOS(e)"><app-icon name="os" [size]="16" /></button>
+                  <button class="icon-btn" title="Editar" (click)="editar(e)"><app-icon name="editar" [size]="16" /></button>
+                  <button class="icon-btn danger" title="Excluir" (click)="excluir(e)"><app-icon name="excluir" [size]="16" /></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7">
+              <app-empty-state icon="equipamento">
+                <button class="btn btn-sm" (click)="limparFiltros()">Limpar filtros</button>
+              </app-empty-state>
+            </td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: cadastro / edição -->
+@if (formAberto()) {
+  <app-modal [title]="editandoId() ? 'Editar equipamento' : 'Novo equipamento'" icon="equipamento" size="lg"
+    subtitle="Campos marcados com * são obrigatórios" (close)="formAberto.set(false)">
+    <form id="formEquip" [formGroup]="form" (ngSubmit)="salvar()" novalidate class="form-grid cols-3">
+      <div class="section-title">Identificação</div>
+      <div class="field">
+        <label for="codigo">Código do equipamento <span class="req">*</span></label>
+        <input id="codigo" class="input mono" formControlName="codigo" [class.invalid]="inv('codigo')" />
+        @if (inv('codigo')) { <span class="error-msg">{{ erro('codigo') }}</span> } @else { <span class="hint">Gerado automaticamente; pode ser alterado.</span> }
+      </div>
+      <div class="field span-2">
+        <label for="nome">Nome <span class="req">*</span></label>
+        <input id="nome" class="input" formControlName="nome" placeholder="Ex.: Bomba centrífuga de carga P-101A" [class.invalid]="inv('nome')" />
+        @if (inv('nome')) { <span class="error-msg">{{ erro('nome') }}</span> }
+      </div>
+      <div class="field">
+        <label for="categoria">Categoria <span class="req">*</span></label>
+        <select id="categoria" class="select" formControlName="categoria" [class.invalid]="inv('categoria')">
+          <option value="" disabled>Selecione…</option>
+          @for (c of config.config().categoriasEquipamento; track c) { <option [value]="c">{{ c }}</option> }
+        </select>
+        @if (inv('categoria')) { <span class="error-msg">{{ erro('categoria') }}</span> }
+      </div>
+      <div class="field">
+        <label for="fabricante">Fabricante <span class="req">*</span></label>
+        <input id="fabricante" class="input" formControlName="fabricante" [class.invalid]="inv('fabricante')" />
+        @if (inv('fabricante')) { <span class="error-msg">{{ erro('fabricante') }}</span> }
+      </div>
+      <div class="field">
+        <label for="modelo">Modelo <span class="req">*</span></label>
+        <input id="modelo" class="input" formControlName="modelo" [class.invalid]="inv('modelo')" />
+        @if (inv('modelo')) { <span class="error-msg">{{ erro('modelo') }}</span> }
+      </div>
+      <div class="field">
+        <label for="numeroSerie">Número de série <span class="req">*</span></label>
+        <input id="numeroSerie" class="input mono" formControlName="numeroSerie" [class.invalid]="inv('numeroSerie')" />
+        @if (inv('numeroSerie')) { <span class="error-msg">{{ erro('numeroSerie') }}</span> }
+      </div>
+      <div class="field">
+        <label for="situacao">Situação operacional <span class="req">*</span></label>
+        <select id="situacao" class="select" formControlName="situacao">
+          @for (s of situacoes; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="dataAquisicao">Data de aquisição <span class="req">*</span></label>
+        <input id="dataAquisicao" type="date" class="input" formControlName="dataAquisicao" [class.invalid]="inv('dataAquisicao')" />
+        @if (inv('dataAquisicao')) { <span class="error-msg">{{ erro('dataAquisicao') }}</span> }
+      </div>
+
+      <div class="section-title">Localização</div>
+      <div class="field">
+        <label for="setor">Setor <span class="req">*</span></label>
+        <select id="setor" class="select" formControlName="setor" [class.invalid]="inv('setor')">
+          <option value="" disabled>Selecione…</option>
+          @for (s of config.config().setores; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+        @if (inv('setor')) { <span class="error-msg">{{ erro('setor') }}</span> }
+      </div>
+      <div class="field span-2">
+        <label for="localizacao">Localização <span class="req">*</span></label>
+        <input id="localizacao" class="input" formControlName="localizacao" placeholder="Ex.: Unidade U-100 · Área 2" [class.invalid]="inv('localizacao')" />
+        @if (inv('localizacao')) { <span class="error-msg">{{ erro('localizacao') }}</span> }
+      </div>
+
+      <div class="section-title">Manutenção</div>
+      <div class="field">
+        <label for="ultima">Última manutenção</label>
+        <input id="ultima" type="date" class="input" formControlName="ultimaManutencao" />
+      </div>
+      <div class="field">
+        <label for="proxima">Próxima manutenção</label>
+        <input id="proxima" type="date" class="input" formControlName="proximaManutencao" />
+      </div>
+      <div class="field full">
+        <label for="descricao">Descrição</label>
+        <textarea id="descricao" class="textarea" formControlName="descricao" placeholder="Função, características técnicas, observações…"></textarea>
+      </div>
+    </form>
+    <div modal-footer>
+      <button type="button" class="btn" (click)="formAberto.set(false)">Cancelar</button>
+      <button type="submit" form="formEquip" class="btn btn-primary"><app-icon name="check" [size]="16" /> {{ editandoId() ? 'Salvar alterações' : 'Cadastrar' }}</button>
+    </div>
+  </app-modal>
+}
+
+<!-- Modal: detalhes -->
+@if (detalhe(); as e) {
+  <app-modal [title]="e.codigo + ' · ' + e.nome" [subtitle]="e.categoria + ' · ' + e.setor" icon="equipamento" size="lg" (close)="detalhe.set(null)">
+    <div class="det-top">
+      <app-badge [value]="e.situacao" />
+      <span class="tag"><app-icon name="local" [size]="13" /> {{ e.localizacao }}</span>
+    </div>
+    <dl class="details">
+      <div class="item"><dt>Fabricante</dt><dd>{{ e.fabricante }}</dd></div>
+      <div class="item"><dt>Modelo</dt><dd>{{ e.modelo }}</dd></div>
+      <div class="item"><dt>Número de série</dt><dd class="mono">{{ e.numeroSerie }}</dd></div>
+      <div class="item"><dt>Data de aquisição</dt><dd>{{ e.dataAquisicao | date: 'dd/MM/yyyy' }}</dd></div>
+      <div class="item"><dt>Última manutenção</dt><dd>{{ e.ultimaManutencao ? (e.ultimaManutencao | date: 'dd/MM/yyyy') : '—' }}</dd></div>
+      <div class="item"><dt>Próxima manutenção</dt><dd>{{ e.proximaManutencao ? (e.proximaManutencao | date: 'dd/MM/yyyy') : '—' }}</dd></div>
+      <div class="item full"><dt>Descrição</dt><dd>{{ e.descricao || '—' }}</dd></div>
+    </dl>
+
+    <hr class="divider" />
+    <div class="hist-grid">
+      <div>
+        <h4 class="h4"><app-icon name="os" [size]="16" /> Ordens de serviço ({{ historico().os.length }})</h4>
+        <ul class="hist">
+          @for (o of historico().os; track o.id) {
+            <li><span class="mono">{{ o.numero }}</span><span class="ellip">{{ o.tipo }} · {{ o.descricao }}</span><app-badge [value]="o.status" /></li>
+          } @empty { <li class="muted">Nenhuma OS registrada.</li> }
+        </ul>
+      </div>
+      <div>
+        <h4 class="h4"><app-icon name="calendario" [size]="16" /> Planos preventivos ({{ historico().preventivas.length }})</h4>
+        <ul class="hist">
+          @for (p of historico().preventivas; track p.id) {
+            <li><span>{{ p.tipoManutencao }}</span><span class="ellip muted">{{ p.frequencia }} · próx. {{ p.proximaManutencao | date: 'dd/MM' }}</span><app-badge [value]="p.status" /></li>
+          } @empty { <li class="muted">Nenhum plano preventivo.</li> }
+        </ul>
+        <h4 class="h4 mt-16"><app-icon name="ferramenta" [size]="16" /> Corretivas ({{ historico().corretivas.length }})</h4>
+        <ul class="hist">
+          @for (c of historico().corretivas; track c.id) {
+            <li><span class="ellip">{{ c.descricaoFalha }}</span><span class="muted nowrap">{{ c.tempoParadaHoras }} h</span><app-badge [value]="c.status" /></li>
+          } @empty { <li class="muted">Nenhuma corretiva registrada.</li> }
+        </ul>
+      </div>
+    </div>
+
+    <div modal-footer>
+      <button class="btn btn-ghost danger-txt" (click)="excluir(e)"><app-icon name="excluir" [size]="16" /> Excluir</button>
+      <button class="btn" (click)="abrirOS(e)"><app-icon name="os" [size]="16" /> Abrir OS</button>
+      <button class="btn btn-primary" (click)="editar(e)"><app-icon name="editar" [size]="16" /> Editar</button>
+    </div>
+  </app-modal>
+}

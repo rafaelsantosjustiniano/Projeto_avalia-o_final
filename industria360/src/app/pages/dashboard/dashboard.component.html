@@ -1,0 +1,165 @@
+<div class="page">
+  <app-page-header title="Dashboard" icon="dashboard"
+    [subtitle]="saudacao + ', ' + (auth.usuario()?.nome ?? '') + '. Visão geral da operação de manutenção.'">
+    <a class="btn" routerLink="/chamados"><app-icon name="chamado" [size]="16" /> Abrir chamado</a>
+    <a class="btn btn-primary" routerLink="/ordens-servico"><app-icon name="mais" [size]="16" /> Nova OS</a>
+  </app-page-header>
+
+  <!-- Indicadores principais -->
+  <div class="kpi-grid">
+    <app-kpi-card label="Equipamentos cadastrados" [value]="kpis().totalEquip" icon="equipamento" tone="info" link="/equipamentos"
+      [hint]="'Disponibilidade física: ' + disponibilidade() + '%'" />
+    <app-kpi-card label="Em operação" [value]="kpis().emOperacao" icon="atividade" tone="info" link="/equipamentos" [query]="{ situacao: 'Em operação' }"
+      hint="Ativos produzindo" />
+    <app-kpi-card label="Em manutenção" [value]="kpis().emManutencao" icon="ferramenta" tone="orange" link="/equipamentos" [query]="{ situacao: 'Em manutenção' }"
+      [hint]="kpis().criticos + ' em estado crítico'" />
+    <app-kpi-card label="Inativos" [value]="kpis().inativos" icon="desligar" tone="neutral" link="/equipamentos" [query]="{ situacao: 'Inativo' }"
+      hint="Fora de operação" />
+    <app-kpi-card label="OS abertas" [value]="kpis().osAbertas" icon="os" tone="warning" link="/ordens-servico"
+      [hint]="kpis().osAtrasadas + ' atrasada(s)'" />
+    <app-kpi-card label="OS concluídas" [value]="kpis().osConcluidas" icon="check-circulo" tone="success" link="/ordens-servico" [query]="{ status: 'Concluída' }"
+      hint="Total histórico" />
+    <app-kpi-card label="Preventivas pendentes" [value]="kpis().prevPendentes" icon="calendario" tone="warning" link="/preventiva"
+      [hint]="kpis().prevAtrasadas + ' vencida(s)'" />
+    <app-kpi-card label="Chamados críticos" [value]="kpis().chamadosCriticos" icon="alerta" tone="danger" link="/chamados"
+      [hint]="kpis().chamadosAbertos + ' chamado(s) em aberto'" />
+  </div>
+
+  <!-- Gráficos -->
+  <div class="charts">
+    <div class="card c-wide">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Manutenções por mês</div>
+          <div class="card-subtitle">Ordens de serviço abertas nos últimos 6 meses, por tipo</div>
+        </div>
+      </div>
+      <app-chart type="bar" [data]="chartMeses()" [options]="optEmpilhado" [height]="280" />
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Equipamentos por situação</div>
+          <div class="card-subtitle">Distribuição atual do parque de ativos</div>
+        </div>
+      </div>
+      <div class="donut-wrap">
+        <app-chart type="doughnut" [data]="chartSituacao()" [options]="optRosca" [height]="280" />
+        <div class="donut-center"><strong>{{ kpis().totalEquip }}</strong><span>ativos</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Ordens de serviço por categoria</div>
+          <div class="card-subtitle">Categoria do equipamento relacionado</div>
+        </div>
+      </div>
+      <app-chart type="bar" [data]="chartCategoria()" [options]="optHorizontal" [height]="280" />
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Preventivas x corretivas</div>
+          <div class="card-subtitle">Índice preventivo: <b class="text-success">{{ razaoPreventiva() }}%</b> das OS (preventivas + corretivas)</div>
+        </div>
+      </div>
+      <app-chart type="pie" [data]="chartPrevCorr()" [height]="280" />
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Desempenho dos técnicos</div>
+          <div class="card-subtitle">OS concluídas e em andamento por profissional</div>
+        </div>
+      </div>
+      <app-chart type="bar" [data]="chartTecnicos()" [height]="280" />
+    </div>
+  </div>
+
+  <!-- Atividades recentes + painéis laterais -->
+  <div class="bottom">
+    <div class="table-card">
+      <div class="card-header pad">
+        <div>
+          <div class="card-title">Atividades recentes</div>
+          <div class="card-subtitle">Últimas movimentações em OS, chamados e corretivas</div>
+        </div>
+        <a class="btn btn-sm btn-ghost" routerLink="/relatorios">Ver relatórios <app-icon name="seta-direita" [size]="14" /></a>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Equipamento</th><th>Tipo de ocorrência</th><th>Responsável</th><th>Data</th><th>Prioridade</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            @for (a of atividades(); track $index) {
+              <tr>
+                <td><a class="cell-main link" [routerLink]="a.rota">{{ a.equipamento }}</a><div class="cell-sub mono">{{ a.codigo }}</div></td>
+                <td><div>{{ a.tipo }}</div><div class="cell-sub ellipsis">{{ a.referencia }}</div></td>
+                <td>{{ a.responsavel }}</td>
+                <td class="nowrap">{{ a.data | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td><app-badge [value]="a.prioridade" /></td>
+                <td><app-badge [value]="a.status" /></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6"><app-empty-state title="Sem atividades" message="Ainda não há movimentações registradas." /></td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="side-col">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Próximas preventivas</div>
+            <div class="card-subtitle">Ordenadas por vencimento</div>
+          </div>
+          <a class="icon-btn" routerLink="/preventiva" title="Abrir preventivas"><app-icon name="seta-direita" [size]="16" /></a>
+        </div>
+        <ul class="mini-list">
+          @for (p of proximasPreventivas(); track p.id) {
+            <li [class]="'st-' + (p.status === 'Atrasada' ? 'danger' : p.status === 'Próxima do vencimento' ? 'warning' : 'ok')">
+              <div class="ml-main">
+                <strong>{{ p.equipamento }}</strong>
+                <span>{{ p.tipo }} · {{ p.data | date: 'dd/MM/yyyy' }}</span>
+              </div>
+              <span class="ml-days">{{ textoDias(p.dias) }}</span>
+            </li>
+          } @empty {
+            <li class="muted">Nenhum plano ativo.</li>
+          }
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Alertas de estoque</div>
+            <div class="card-subtitle">Peças abaixo do mínimo ou zeradas</div>
+          </div>
+          <a class="icon-btn" routerLink="/estoque" title="Abrir estoque"><app-icon name="seta-direita" [size]="16" /></a>
+        </div>
+        <ul class="mini-list">
+          @for (p of alertasEstoque(); track p.id) {
+            <li [class]="p.nivel === 'Zerado' ? 'st-danger' : 'st-warning'">
+              <div class="ml-main">
+                <strong>{{ p.nome }}</strong>
+                <span>{{ p.codigo }} · mín. {{ p.estoqueMinimo }} {{ p.unidade }}</span>
+              </div>
+              <app-badge [value]="p.nivel" />
+            </li>
+          } @empty {
+            <li class="muted">Estoque dentro dos níveis normais.</li>
+          }
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
