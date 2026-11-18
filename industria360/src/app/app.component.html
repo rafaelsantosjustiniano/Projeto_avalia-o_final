@@ -1,2 +1,19 @@
-<router-outlet />
+@if (api.status() === 'offline') {
+  <div class="offline">
+    <div class="box">
+      <span class="ic"><app-icon name="banco" [size]="30" /></span>
+      <h1>Sem conexão com o servidor</h1>
+      <p>O INDUSTRIA360 não conseguiu carregar os dados do banco.</p>
+      <p class="detalhe">{{ api.erroConexao() }}</p>
+      <ol>
+        <li>Verifique se o <b>MySQL</b> está rodando.</li>
+        <li>Abra um terminal na pasta <code>api</code> e execute <code>npm start</code>.</li>
+        <li>Depois clique em <b>Tentar novamente</b>.</li>
+      </ol>
+      <button class="btn btn-primary" (click)="recarregar()"><app-icon name="recarregar" [size]="16" /> Tentar novamente</button>
+    </div>
+  </div>
+} @else {
+  <router-outlet />
+}
 <app-toast-container />

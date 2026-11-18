@@ -1,14 +1,13 @@
 import { effect, inject, Injectable, signal } from '@angular/core';
 import { Configuracao, PrioridadeConfig } from '../models';
-import { StorageService } from './storage.service';
-import { seedConfiguracao } from '../data/seed-data';
+import { ApiService } from './api.service';
+import { configuracaoPadrao } from '../data/padroes';
 
-/** Configurações gerais da empresa/unidade e cadastros auxiliares. */
+/** Configurações gerais da empresa/unidade e cadastros auxiliares. Banco: /api/configuracao */
 @Injectable({ providedIn: 'root' })
 export class ConfiguracaoService {
-  private readonly storage = inject(StorageService);
-  private readonly chave = 'configuracao';
-  private readonly _config = signal<Configuracao>(this.carregar());
+  private readonly api = inject(ApiService);
+  private readonly _config = signal<Configuracao>({ ...configuracaoPadrao(), ...(this.api.inicial('configuracao') ?? {}) });
 
   readonly config = this._config.asReadonly();
 
@@ -17,19 +16,9 @@ export class ConfiguracaoService {
     effect(() => document.documentElement.setAttribute('data-theme', this._config().tema));
   }
 
-  private carregar(): Configuracao {
-    const salvo = this.storage.get<Configuracao>(this.chave);
-    const padrao = seedConfiguracao();
-    if (!salvo) {
-      this.storage.set(this.chave, padrao);
-      return padrao;
-    }
-    return { ...padrao, ...salvo }; // garante novos campos em versões futuras
-  }
-
   atualizar(alteracoes: Partial<Configuracao>) {
     this._config.update(c => ({ ...c, ...alteracoes }));
-    this.storage.set(this.chave, this._config());
+    this.api.salvarConfiguracao(this._config());
   }
 
   alternarTema() {

@@ -124,7 +124,7 @@
 
         @case ('dados') {
           <div class="card">
-            <div class="card-header"><div><div class="card-title">Armazenamento local</div><div class="card-subtitle">Os dados ficam salvos no navegador (localStorage) · {{ tamanho() }} KB utilizados</div></div></div>
+            <div class="card-header"><div><div class="card-title">Banco de dados</div><div class="card-subtitle">Os dados ficam salvos no MySQL (banco <code>industria360</code>) e são acessados pela API</div></div></div>
             <div class="stats">
               @for (s of estatisticas(); track s.rotulo) {
                 <div class="stat"><app-icon [name]="s.icone" [size]="18" /><strong>{{ s.n }}</strong><span>{{ s.rotulo }}</span></div>
@@ -133,26 +133,26 @@
             <div class="data-actions">
               <div class="da">
                 <div><strong>Exportar backup</strong><span>Gera um arquivo JSON com todos os registros.</span></div>
-                <button class="btn" (click)="exportarBackup()"><app-icon name="download" [size]="16" /> Exportar</button>
+                <button class="btn" (click)="exportarBackup()" [disabled]="processando()"><app-icon name="download" [size]="16" /> Exportar</button>
               </div>
               <div class="da">
-                <div><strong>Importar backup</strong><span>Substitui os dados atuais por um backup do INDUSTRIA360.</span></div>
-                <label class="btn"><app-icon name="upload" [size]="16" /> Importar<input type="file" accept="application/json,.json" hidden (change)="importarBackup($event)" /></label>
+                <div><strong>Importar backup</strong><span>Substitui todos os dados do banco pelo conteúdo de um backup do INDUSTRIA360.</span></div>
+                <label class="btn" [class.disabled]="processando()"><app-icon name="upload" [size]="16" /> Importar<input type="file" accept="application/json,.json" hidden [disabled]="processando()" (change)="importarBackup($event)" /></label>
               </div>
               <div class="da danger">
-                <div><strong>Restaurar dados de demonstração</strong><span>Apaga os registros e recarrega os dados fictícios originais.</span></div>
-                <button class="btn btn-danger" (click)="restaurarDemo()"><app-icon name="recarregar" [size]="16" /> Restaurar</button>
+                <div><strong>Apagar todos os dados</strong><span>Deixa o sistema zerado, como novo. Os usuários de acesso são mantidos.</span></div>
+                <button class="btn btn-danger" (click)="apagarTudo()" [disabled]="processando()"><app-icon name="excluir" [size]="16" /> Apagar tudo</button>
               </div>
             </div>
           </div>
           <div class="card mt-16">
-            <div class="card-header"><div><div class="card-title">Integração futura</div></div></div>
+            <div class="card-header"><div><div class="card-title">Arquitetura</div></div></div>
             <div class="alert alert-info">
               <app-icon name="info" [size]="16" />
               <div>
-                Esta versão é um <b>MVP de demonstração</b>: não há conexão com máquinas, sensores ou CLPs, e todos os dados são fictícios.
-                A persistência está centralizada no <code>StorageService</code> e nos serviços de domínio, preparados para serem substituídos por uma
-                <b>API REST</b> com banco de dados <b>MySQL</b> sem alterar os componentes de tela.
+                O site (Angular) se comunica com uma <b>API REST</b> em Node.js + Express (pasta <code>api</code>), que grava tudo no banco
+                <b>MySQL</b>. Cada alteração feita nas telas é enviada automaticamente para a API. Ainda não há conexão com máquinas,
+                sensores ou CLPs.
               </div>
             </div>
           </div>

@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { NivelEstoque, Peca, TipoMovimentacao } from '../models';
 import { BaseCrudService } from './base-crud.service';
-import { seedPecas } from '../data/seed-data';
 import { proximoSequencial } from '../../shared/utils/codigos';
 import { agoraISO } from '../../shared/utils/datas';
 import { AuthService } from './auth.service';
@@ -14,7 +13,7 @@ export class EstoqueService extends BaseCrudService<Peca> {
   private readonly auth = inject(AuthService);
 
   constructor() {
-    super('pecas', 'pc', seedPecas);
+    super('pecas', 'pc');
   }
 
   proximoCodigo(): string {

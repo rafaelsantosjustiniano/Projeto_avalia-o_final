@@ -1,6 +1,6 @@
 import {
   Frequencia, SituacaoEquipamento, SituacaoTecnico, StatusChamado,
-  StatusCorretiva, StatusOS, TipoManutencao
+  StatusCorretiva, StatusOS, StatusSugestao, TipoManutencao, TipoSugestao
 } from '../models';
 
 /** Listas fixas de opções usadas em formulários e filtros. */
@@ -32,3 +32,13 @@ export const TIPOS_PREVENTIVA = [
 export const STATUS_CORRETIVA: StatusCorretiva[] = ['Aberta', 'Em diagnóstico', 'Em reparo', 'Aguardando peças', 'Concluída'];
 
 export const UNIDADES = ['un', 'pç', 'kg', 'L', 'm', 'cx', 'jg', 'par'];
+
+export const TIPOS_SUGESTAO: TipoSugestao[] = ['Erro / problema', 'Sugestão de melhoria', 'Elogio', 'Dúvida'];
+
+export const STATUS_SUGESTAO: StatusSugestao[] = ['Nova', 'Em análise', 'Resolvida', 'Descartada'];
+
+/** Páginas/módulos do sistema que podem ser citados em uma sugestão. */
+export const MODULOS_SISTEMA = [
+  'Geral', 'Login', 'Dashboard', 'Equipamentos', 'Ordens de Serviço', 'Chamados', 'Manutenção Preventiva',
+  'Manutenção Corretiva', 'Estoque e Peças', 'Técnicos', 'Relatórios', 'Configurações', 'Sugestões'
+];

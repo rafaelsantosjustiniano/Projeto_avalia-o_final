@@ -7,3 +7,4 @@ export * from './peca.model';
 export * from './preventiva.model';
 export * from './corretiva.model';
 export * from './configuracao.model';
+export * from './sugestao.model';

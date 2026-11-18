@@ -25,6 +25,7 @@ export const routes: Routes = [
       { path: 'estoque', title: t('Estoque e Peças'), loadComponent: () => import('./pages/estoque/estoque.component').then(m => m.EstoqueComponent) },
       { path: 'tecnicos', title: t('Técnicos'), loadComponent: () => import('./pages/tecnicos/tecnicos.component').then(m => m.TecnicosComponent) },
       { path: 'relatorios', title: t('Relatórios'), loadComponent: () => import('./pages/relatorios/relatorios.component').then(m => m.RelatoriosComponent) },
+      { path: 'sugestoes', title: t('Sugestões'), loadComponent: () => import('./pages/sugestoes/sugestoes.component').then(m => m.SugestoesComponent) },
       { path: 'configuracoes', title: t('Configurações'), loadComponent: () => import('./pages/configuracoes/configuracoes.component').then(m => m.ConfiguracoesComponent) },
     ],
   },

@@ -55,6 +55,14 @@ const MAPA: Record<string, Tone> = {
   // Movimentação
   'entrada': 'success',
   'saida': 'orange',
+  // Sugestões (status "Em análise" já está acima, em Chamados)
+  'nova': 'info',
+  'resolvida': 'success',
+  'descartada': 'neutral',
+  'erro / problema': 'danger',
+  'sugestao de melhoria': 'purple',
+  'elogio': 'success',
+  'duvida': 'info',
 };
 
 export function toneDe(valor: string | null | undefined): Tone | null {

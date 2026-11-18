@@ -13,14 +13,14 @@
         <li><app-icon name="relatorio" [size]="18" /> Indicadores de disponibilidade e desempenho</li>
       </ul>
     </div>
-    <div class="hero-foot">MVP · Projeto de inovação tecnológica · Ambiente de demonstração com dados fictícios</div>
+    <div class="hero-foot">Projeto de inovação tecnológica · Gestão de manutenção industrial</div>
   </section>
 
   <section class="panel">
     <form class="card-login" [formGroup]="form" (ngSubmit)="entrar()" novalidate>
       <div class="mobile-logo"><app-logo [size]="44" /></div>
       <h2>Acessar o sistema</h2>
-      <p class="sub">{{ config.config().unidade }}</p>
+      <p class="sub">{{ config.config().unidade || 'Gestão Industrial Inteligente' }}</p>
 
       <div class="field">
         <label for="login">Usuário <span class="req">*</span></label>
@@ -47,19 +47,9 @@
         <div class="alert alert-danger"><app-icon name="alerta" [size]="16" /> {{ erro() }}</div>
       }
 
-      <button type="submit" class="btn btn-primary btn-block lg">
-        Entrar <app-icon name="seta-direita" [size]="16" />
+      <button type="submit" class="btn btn-primary btn-block lg" [disabled]="entrando()">
+        {{ entrando() ? 'Entrando…' : 'Entrar' }} <app-icon name="seta-direita" [size]="16" />
       </button>
-
-      <div class="demo">
-        <div class="demo-title"><app-icon name="info" [size]="14" /> Credenciais de demonstração</div>
-        @for (c of auth.credenciaisDemo; track c.login) {
-          <button type="button" class="cred" (click)="preencher(c.login, c.senha)">
-            <span><b>{{ c.login }}</b> / {{ c.senha }}</span>
-            <small>{{ c.perfil }}</small>
-          </button>
-        }
-      </div>
 
       <p class="copy">© {{ ano }} INDUSTRIA360 – Gestão Industrial Inteligente</p>
     </form>

@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { OrdemServico, RegistroHistorico, StatusOS } from '../models';
 import { BaseCrudService } from './base-crud.service';
-import { seedOrdensServico } from '../data/seed-data';
 import { proximoSequencial } from '../../shared/utils/codigos';
 import { agoraISO, hoje } from '../../shared/utils/datas';
 import { STATUS_OS_ATIVOS } from '../constants/opcoes';
@@ -25,7 +24,7 @@ export class OrdemServicoService extends BaseCrudService<OrdemServico> {
   private readonly tecnicos = inject(TecnicoService);
 
   constructor() {
-    super('ordens-servico', 'os', seedOrdensServico);
+    super('ordens-servico', 'os');
     this.verificarAtrasos();
   }
 
@@ -113,7 +112,8 @@ export class OrdemServicoService extends BaseCrudService<OrdemServico> {
     const vencidas = this._itens().filter(o => this.prazoVencido(o) && o.status !== 'Atrasada');
     if (!vencidas.length) return 0;
     const agora = agoraISO();
-    this._itens.update(lista => lista.map(o => vencidas.includes(o)
+    const ids = new Set(vencidas.map(o => o.id));
+    this._itens.update(lista => lista.map(o => ids.has(o.id)
       ? {
           ...o, status: 'Atrasada' as StatusOS,
           historico: [...o.historico, {
@@ -122,7 +122,7 @@ export class OrdemServicoService extends BaseCrudService<OrdemServico> {
           }]
         }
       : o));
-    this.persistir();
+    this._itens().filter(o => ids.has(o.id)).forEach(o => this.salvarNoBanco(o));
     return vencidas.length;
   }
 }

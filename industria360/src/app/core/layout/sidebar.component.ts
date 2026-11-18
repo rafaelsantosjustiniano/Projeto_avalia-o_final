@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { IconComponent, LogoComponent } from '../../shared/components';
-import { ChamadoService, ConfiguracaoService, EstoqueService, OrdemServicoService, PreventivaService } from '../services';
+import {
+  AuthService, ChamadoService, ConfiguracaoService, EstoqueService, OrdemServicoService, PreventivaService, SugestaoService
+} from '../services';
 
 interface ItemMenu { rota: string; rotulo: string; icone: string; contador?: () => number; tom?: 'danger' | 'warning' | 'info'; }
 interface GrupoMenu { titulo: string; itens: ItemMenu[]; }
@@ -19,6 +21,8 @@ export class SidebarComponent {
   private readonly chamados = inject(ChamadoService);
   private readonly preventivas = inject(PreventivaService);
   private readonly estoque = inject(EstoqueService);
+  private readonly sugestoes = inject(SugestaoService);
+  private readonly auth = inject(AuthService);
   readonly config = inject(ConfiguracaoService);
   readonly navegou = output<void>();
 
@@ -28,6 +32,8 @@ export class SidebarComponent {
     const s = this.preventivas.status(p); return s === 'Atrasada' || s === 'Próxima do vencimento';
   }).length);
   private readonly estoqueAlerta = computed(() => this.estoque.itens().filter(p => this.estoque.nivel(p) !== 'Normal').length);
+  /** Só o administrador vê o contador de sugestões novas. */
+  private readonly sugestoesNovas = computed(() => (this.auth.ehAdmin() ? this.sugestoes.novas() : 0));
 
   readonly grupos: GrupoMenu[] = [
     { titulo: 'Visão geral', itens: [
@@ -48,6 +54,7 @@ export class SidebarComponent {
     ]},
     { titulo: 'Gestão', itens: [
       { rota: '/relatorios', rotulo: 'Relatórios', icone: 'relatorio' },
+      { rota: '/sugestoes', rotulo: 'Sugestões', icone: 'mensagem', contador: this.sugestoesNovas, tom: 'info' },
       { rota: '/configuracoes', rotulo: 'Configurações', icone: 'config' },
     ]},
   ];

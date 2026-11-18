@@ -23,7 +23,7 @@ import { ConfirmDialogComponent } from '../../shared/components';
         </main>
         <footer class="foot no-print">
           <span><b>INDUSTRIA360</b> – Gestão Industrial Inteligente</span>
-          <span>MVP de demonstração · dados fictícios armazenados localmente no navegador</span>
+          <span>Dados armazenados no banco de dados MySQL</span>
         </footer>
       </div>
     </div>

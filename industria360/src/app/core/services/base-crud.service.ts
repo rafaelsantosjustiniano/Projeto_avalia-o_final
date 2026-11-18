@@ -1,36 +1,26 @@
 import { inject, Signal, signal } from '@angular/core';
 import { Entidade } from '../models';
-import { StorageService } from './storage.service';
+import { ApiService, RecursoApi } from './api.service';
 import { gerarId } from '../../shared/utils/codigos';
 
 /**
- * Classe base para serviços de domínio com persistência local.
+ * Classe base para serviços de domínio com persistência no banco (via API).
  *
  * - Mantém a coleção em um `signal`, de modo que tabelas, indicadores e
  *   gráficos são atualizados automaticamente após qualquer alteração.
- * - Na primeira execução carrega os dados de demonstração (seed).
- * - Toda alteração é salva automaticamente no armazenamento local.
- *
- * Para migrar para a API REST: trocar `carregar()`/`persistir()` e os
- * métodos de escrita por chamadas HttpClient (GET/POST/PUT/DELETE).
+ * - Os dados iniciais vêm da carga feita pelo ApiService ao abrir o site.
+ * - Toda alteração é enviada para a API (PUT/DELETE em /api/<recurso>/<id>).
  */
 export abstract class BaseCrudService<T extends Entidade> {
-  protected readonly storage = inject(StorageService);
+  protected readonly api = inject(ApiService);
   protected readonly _itens = signal<T[]>([]);
   readonly itens: Signal<T[]> = this._itens.asReadonly();
 
   protected constructor(
-    protected readonly chave: string,
+    protected readonly recurso: RecursoApi,
     private readonly prefixoId: string,
-    seed: () => T[]
   ) {
-    const salvos = this.storage.get<T[]>(chave);
-    if (Array.isArray(salvos)) {
-      this._itens.set(salvos);
-    } else {
-      this._itens.set(seed());
-      this.persistir();
-    }
+    this._itens.set([...((this.api.inicial(recurso) as T[] | undefined) ?? [])]);
   }
 
   obter(id: string | null | undefined): T | undefined {
@@ -41,7 +31,7 @@ export abstract class BaseCrudService<T extends Entidade> {
   protected inserir(dados: Omit<T, 'id'>): T {
     const item = { ...dados, id: gerarId(this.prefixoId) } as T;
     this._itens.update(lista => [item, ...lista]);
-    this.persistir();
+    this.salvarNoBanco(item);
     return item;
   }
 
@@ -52,16 +42,16 @@ export abstract class BaseCrudService<T extends Entidade> {
       atualizado = { ...i, ...alteracoes, id };
       return atualizado;
     }));
-    this.persistir();
+    if (atualizado) this.salvarNoBanco(atualizado);
     return atualizado;
   }
 
   excluir(id: string): void {
     this._itens.update(lista => lista.filter(i => i.id !== id));
-    this.persistir();
+    this.api.remover(this.recurso, id);
   }
 
-  protected persistir(): void {
-    this.storage.set(this.chave, this._itens());
+  protected salvarNoBanco(item: T): void {
+    this.api.salvar(this.recurso, item);
   }
 }

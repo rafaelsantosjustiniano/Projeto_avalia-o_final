@@ -3,7 +3,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { IconComponent, ListaEditavelComponent, PageHeaderComponent } from '../../shared/components';
 import {
   ChamadoService, ConfirmacaoService, ConfiguracaoService, CorretivaService, DadosService, EquipamentoService,
-  EstoqueService, NotificacaoService, OrdemServicoService, PreventivaService, TecnicoService
+  EstoqueService, NotificacaoService, OrdemServicoService, PreventivaService, SugestaoService, TecnicoService
 } from '../../core/services';
 import { Configuracao, PrioridadeConfig } from '../../core/models';
 import { campoInvalido, mensagemErro, naoVazio } from '../../shared/utils/formulario';
@@ -32,6 +32,7 @@ export class ConfiguracoesComponent {
   private readonly corrSvc = inject(CorretivaService);
   private readonly estSvc = inject(EstoqueService);
   private readonly tecSvc = inject(TecnicoService);
+  private readonly sugSvc = inject(SugestaoService);
 
   readonly aba = signal<Aba>('empresa');
   readonly abas: { id: Aba; rotulo: string; icone: string }[] = [
@@ -71,8 +72,10 @@ export class ConfiguracoesComponent {
     { rotulo: 'Corretivas', n: this.corrSvc.itens().length, icone: 'ferramenta' },
     { rotulo: 'Peças', n: this.estSvc.itens().length, icone: 'estoque' },
     { rotulo: 'Técnicos', n: this.tecSvc.itens().length, icone: 'equipe' },
+    { rotulo: 'Sugestões', n: this.sugestoes(), icone: 'mensagem' },
   ]);
-  readonly tamanho = signal(this.dados.tamanhoKB());
+  readonly sugestoes = computed(() => this.sugSvc.itens().length);
+  readonly processando = signal(false);
 
   inv(c: string) { return campoInvalido(this.formEmpresa, c, this.enviado()); }
   erro(c: string) { return mensagemErro(this.formEmpresa, c); }
@@ -92,7 +95,6 @@ export class ConfiguracoesComponent {
   /** Atualiza listas auxiliares (setores, categorias, especialidades). */
   atualizarLista(campo: ListaConfig, ev: { itens: string[]; acao: string; item: string }) {
     this.config.atualizar({ [campo]: ev.itens } as Partial<Configuracao>);
-    this.tamanho.set(this.dados.tamanhoKB());
     if (ev.acao === 'removido') {
       this.notif.info(`"${ev.item}" removido. Registros existentes mantêm o valor anterior.`, 'Item removido');
     } else {
@@ -151,9 +153,13 @@ export class ConfiguracoesComponent {
     this.notif.sucesso('Configurações gerais salvas.');
   }
 
-  exportarBackup() {
-    this.dados.exportarBackup();
-    this.notif.sucesso('Backup gerado. Guarde o arquivo JSON em local seguro.');
+  async exportarBackup() {
+    try {
+      await this.dados.exportarBackup();
+      this.notif.sucesso('Backup gerado. Guarde o arquivo JSON em local seguro.');
+    } catch {
+      this.notif.erro('Não foi possível gerar o backup. Verifique se a API está rodando.');
+    }
   }
 
   async importarBackup(ev: Event) {
@@ -166,19 +172,29 @@ export class ConfiguracoesComponent {
       textoConfirmar: 'Importar', perigo: true,
     });
     if (!ok) return;
+    this.processando.set(true);
     try {
       await this.dados.importarBackup(arquivo);
     } catch (e) {
       this.notif.erro(e instanceof Error ? e.message : 'Arquivo inválido.', 'Falha na importação');
+    } finally {
+      this.processando.set(false);
     }
   }
 
-  async restaurarDemo() {
+  async apagarTudo() {
     const ok = await this.confirmacao.confirmar({
-      titulo: 'Restaurar dados de demonstração',
-      mensagem: 'Todos os registros cadastrados neste navegador serão apagados e os dados de demonstração originais serão recarregados.\nEsta ação não pode ser desfeita.',
-      textoConfirmar: 'Restaurar', perigo: true,
+      titulo: 'Apagar todos os dados',
+      mensagem: 'Todos os registros (equipamentos, OS, chamados, preventivas, corretivas, peças, técnicos e sugestões) e as configurações serão apagados do banco de dados.\nOs usuários de acesso são mantidos. Esta ação não pode ser desfeita — exporte um backup antes, se precisar.',
+      textoConfirmar: 'Apagar tudo', perigo: true,
     });
-    if (ok) this.dados.restaurarDemonstracao();
+    if (!ok) return;
+    this.processando.set(true);
+    try {
+      await this.dados.apagarTudo();
+    } catch (e) {
+      this.notif.erro(e instanceof Error ? e.message : 'Falha ao apagar os dados.');
+      this.processando.set(false);
+    }
   }
 }

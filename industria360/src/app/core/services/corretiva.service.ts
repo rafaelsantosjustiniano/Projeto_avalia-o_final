@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { Corretiva, StatusCorretiva } from '../models';
 import { BaseCrudService } from './base-crud.service';
-import { seedCorretivas } from '../data/seed-data';
 import { agoraISO } from '../../shared/utils/datas';
 import { AuthService } from './auth.service';
 
@@ -13,7 +12,7 @@ export class CorretivaService extends BaseCrudService<Corretiva> {
   private readonly auth = inject(AuthService);
 
   constructor() {
-    super('corretivas', 'co', seedCorretivas);
+    super('corretivas', 'co');
   }
 
   criar(dados: CorretivaDados, nota = 'Falha registrada.'): Corretiva {
