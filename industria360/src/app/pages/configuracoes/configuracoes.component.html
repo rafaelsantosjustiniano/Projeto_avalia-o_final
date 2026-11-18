@@ -70,7 +70,7 @@
               <button class="btn btn-sm" (click)="adicionarPrioridade()"><app-icon name="mais" [size]="14" /> Adicionar</button>
             </div>
             <div class="prio-list">
-              @for (p of prioridades(); track $index; let i = $index; let last = $last) {
+              @for (p of prioridades(); track i; let i = $index; let last = $last) {
                 <div class="prio-row">
                   <div class="ord">
                     <button class="icon-btn" (click)="mover(i, -1)" [disabled]="i === 0" title="Subir"><app-icon name="seta-cima" [size]="14" /></button>

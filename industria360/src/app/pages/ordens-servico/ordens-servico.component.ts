@@ -35,9 +35,9 @@ export class OrdensServicoComponent implements OnInit {
   readonly config = inject(ConfiguracaoService);
 
   /** Parâmetros de URL: ?novo=<equipamentoId> abre o formulário; ?status= filtra. */
-  readonly novoParam = input<string>(undefined, { alias: 'novo' });
-  readonly statusParam = input<string>(undefined, { alias: 'status' });
-  readonly verParam = input<string>(undefined, { alias: 'ver' });
+  readonly novoParam = input<string | undefined>(undefined, { alias: 'novo' });
+  readonly statusParam = input<string | undefined>(undefined, { alias: 'status' });
+  readonly verParam = input<string | undefined>(undefined, { alias: 'ver' });
 
   readonly statusLista = STATUS_OS;
   readonly tipos = TIPOS_MANUTENCAO;
